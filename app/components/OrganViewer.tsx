@@ -5,6 +5,7 @@ import {
   Box,
   CircleDashed,
   Layers3,
+  Lock,
   Maximize2,
   RotateCcw,
   ScanLine,
@@ -21,9 +22,11 @@ type Props = {
   onAutoRotate: (enabled: boolean) => void;
   compare: boolean;
   onCompare: () => void;
+  locked: boolean;
+  onLockedAction: () => void;
 };
 
-export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompare }: Props) {
+export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompare, locked, onLockedAction }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<AnatomyViewer | null>(null);
   const organRef = useRef(organ);
@@ -99,6 +102,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
   const handleTool = (tool: string) => {
     const viewer = viewerRef.current;
     if (!viewer) return;
+    if (tool === "compare" && locked) { onLockedAction(); return; }
     if (tool === "rotate") onAutoRotate(!autoRotate);
     if (tool === "zoom") viewer.zoom(-1);
     if (tool === "isolate") setActiveTool(viewer.toggleIsolate() ? tool : null);
@@ -112,21 +116,21 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
   };
 
   const tools = [
-    { id: "rotate", label: "Rotate", icon: RotateCcw },
+    { id: "rotate", label: "Rotar", icon: RotateCcw },
     { id: "zoom", label: "Zoom", icon: Search },
-    { id: "isolate", label: "Isolate", icon: CircleDashed },
-    { id: "section", label: "Cross-section", icon: ScanLine },
-    { id: "layers", label: "Layers", icon: Layers3 },
-    { id: "compare", label: "Compare", icon: Box },
-    { id: "reset", label: "Reset", icon: RotateCcw },
+    { id: "isolate", label: "Aislar", icon: CircleDashed },
+    { id: "section", label: "Corte", icon: ScanLine },
+    { id: "layers", label: "Capas", icon: Layers3 },
+    { id: "compare", label: "Comparar", icon: locked ? Lock : Box },
+    { id: "reset", label: "Reiniciar", icon: RotateCcw },
   ];
 
   return (
-    <section className="viewer-shell" aria-label={`${organ.name} interactive viewer`}>
+    <section className="viewer-shell" aria-label={`Visor interactivo de ${organ.name.toLowerCase()}`}>
       <div className="viewer-glow" style={{ "--organ-accent": organ.accent } as React.CSSProperties} />
       <div ref={mountRef} className="three-mount" />
 
-      <div className="viewer-tools" aria-label="3D viewer tools">
+      <div className="viewer-tools" aria-label="Herramientas del visor 3D">
         {tools.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -142,9 +146,9 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
         ))}
       </div>
 
-      <aside className="tip-note" aria-label="Viewer instructions">
-        <span><Sparkles size={15} /> Tip</span>
-        <p>Drag to rotate<br />Scroll to zoom<br />Click a dot to learn more</p>
+      <aside className="tip-note" aria-label="Instrucciones del visor">
+        <span><Sparkles size={15} /> Consejo</span>
+        <p>Arrastra para rotar<br />Desplázate para hacer zoom<br />Toca un punto para aprender más</p>
       </aside>
 
       {selected && (
@@ -169,18 +173,18 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
       {loading && slowLoad && (
         <div className="model-loader" role="status" aria-live="polite">
           <div className="loader-orbit"><Maximize2 size={20} /></div>
-          <strong>Preparing the {organ.name.toLowerCase()}</strong>
+          <strong>Preparando {organ.name.toLowerCase()}</strong>
           <span>{Math.max(8, Math.round(progress * 100))}%</span>
         </div>
       )}
 
       <button className="auto-rotate" type="button" onClick={() => onAutoRotate(!autoRotate)} aria-pressed={autoRotate}>
-        <RotateCcw size={14} /> Auto rotate
+        <RotateCcw size={14} /> Rotación automática
         <span className={`switch ${autoRotate ? "on" : ""}`}><i /></span>
       </button>
 
       <div className="view-caption">
-        <span>3D specimen · click a dot to explore</span>
+        <span>Espécimen 3D · toca un punto para explorar</span>
         <strong>{organ.scientificName}</strong>
       </div>
     </section>

@@ -1,13 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
+import { Source_Serif_4, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const sans = DM_Sans({
+// A clinical, highly legible UI face — the same family of type used across
+// modern medical and health-tech products.
+const sans = Plus_Jakarta_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const serif = Cormorant_Garamond({
+// A serif built for extended reading (used in academic and medical
+// publishing), standing in for the previous decorative display serif.
+const serif = Source_Serif_4({
   variable: "--font-serif",
   subsets: ["latin"],
 });
@@ -16,7 +20,7 @@ const OG_IMAGE = {
   url: "/og.jpg",
   width: 1200,
   height: 675,
-  alt: "An anatomical heart specimen floating above a plinth, beside the Anatomy Atelier wordmark",
+  alt: "Una pieza anatómica de un corazón flotando sobre un pedestal, junto al logotipo de Atlas Anatómico",
 };
 
 /**
@@ -34,11 +38,11 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Anatomy Atelier — Learn anatomy like an artist",
+  title: "Atlas Anatómico — Anatomía 3D para estudiantes y profesionales de la salud",
   description:
-    "Explore medically detailed 3D organs — heart, brain, lungs, liver, kidneys, eye, intestine, pancreas, and skin — through an elegant, interactive anatomy atelier.",
-  applicationName: "Anatomy Atelier",
-  keywords: ["anatomy", "3D anatomy", "human body", "medical education", "interactive learning", "organs"],
+    "Explora órganos en 3D con precisión médica —corazón, cerebro, pulmones, hígado, riñones, ojo, intestino, páncreas y piel— en una plataforma interactiva pensada para el aprendizaje clínico.",
+  applicationName: "Atlas Anatómico",
+  keywords: ["anatomía", "anatomía 3D", "cuerpo humano", "educación médica", "aprendizaje interactivo", "órganos", "plataforma médica"],
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -50,15 +54,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "Anatomy Atelier",
-    title: "Anatomy Atelier — Learn anatomy like an artist",
-    description: "Learn anatomy like an artist through immersive, medically detailed 3D specimens.",
+    siteName: "Atlas Anatómico",
+    title: "Atlas Anatómico — Anatomía 3D para estudiantes y profesionales de la salud",
+    description: "Aprende anatomía con precisión clínica a través de especímenes 3D interactivos.",
     images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Anatomy Atelier — Learn anatomy like an artist",
-    description: "Learn anatomy like an artist through immersive, medically detailed 3D specimens.",
+    title: "Atlas Anatómico — Anatomía 3D para estudiantes y profesionales de la salud",
+    description: "Aprende anatomía con precisión clínica a través de especímenes 3D interactivos.",
     images: [OG_IMAGE],
   },
 };
@@ -73,7 +77,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body
         className={`${sans.variable} ${serif.variable}`}
       >
