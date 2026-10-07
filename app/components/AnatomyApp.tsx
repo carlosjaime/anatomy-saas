@@ -39,15 +39,14 @@ import { Dialog } from "./Dialog";
 import { PlansDialog } from "./PlansDialog";
 import { Encyclopedia, type EncyclopediaTab } from "./Encyclopedia";
 import { organById, organs, type Organ, type OrganId } from "../lib/anatomy-data";
-import { hasFeature, parsePlan, planById, type PlanId } from "../lib/plans";
+import { hasFeature, planById, type PlanId } from "../lib/plans";
 import { studyGuides } from "../lib/encyclopedia-data";
-import { logout, postJson, trackStudy } from "../lib/client-api";
+import { logout, trackStudy } from "../lib/client-api";
 import type { SessionUser } from "../lib/server/auth-store";
 
 type LearningType = "lesson" | "quiz" | "animation" | "system";
 type Overlay = "learning" | "plans" | "encyclopedia" | null;
 
-const PLAN_KEY = "atlas-anatomico:plan";
 const FAVORITES_KEY = "atlas-anatomico:favoritos";
 
 function isOrganId(value: unknown): value is OrganId {
@@ -124,8 +123,8 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
   const [activeSystem, setActiveSystem] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileLibrary, setMobileLibrary] = useState(false);
-  const [plan, setPlanState] = useState<PlanId>(user?.plan ?? "free");
-  const [planError, setPlanError] = useState<string | null>(null);
+  // Siempre lo determina el servidor a partir de la suscripción confirmada.
+  const plan: PlanId = user?.plan ?? "free";
   const [favorites, setFavorites] = useState<Set<OrganId>>(new Set());
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -147,8 +146,6 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setPhysiology(false);
     try {
-      // Signed-in users get their plan from the server; guests from this device.
-      if (!user) setPlanState(parsePlan(window.localStorage.getItem(PLAN_KEY)));
       setFavorites(parseFavorites(window.localStorage.getItem(FAVORITES_KEY)));
     } catch {
       // Private browsing or a disabled storage API — the app still works,
@@ -160,25 +157,6 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
   useEffect(() => {
     if (user) trackStudy({ organId, kind: "view" });
   }, [user, organId]);
-
-  const setPlan = async (next: PlanId) => {
-    const previous = plan;
-    setPlanState(next);
-    setPlanError(null);
-    if (!user) {
-      try {
-        window.localStorage.setItem(PLAN_KEY, next);
-      } catch {
-        // See the read above — storage may simply be unavailable.
-      }
-      return;
-    }
-    const result = await postJson<{ plan: PlanId }>("/api/account/plan", { plan: next });
-    if (!result.ok) {
-      setPlanState(previous);
-      setPlanError(result.error);
-    }
-  };
 
   const signOut = async () => {
     await logout();
@@ -656,10 +634,8 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
       <PlansDialog
         open={overlay === "plans"}
         plan={plan}
-        onSetPlan={setPlan}
         onClose={closeOverlay}
-        error={planError}
-        signedIn={Boolean(user)}
+        viewer={user ? { trialAvailable: user.trialAvailable, emailVerified: user.emailVerified } : null}
       />
       <Encyclopedia
         open={overlay === "encyclopedia"}

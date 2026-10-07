@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState, type FormEvent } from "react";
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { postJson } from "../lib/client-api";
@@ -126,6 +127,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
           </div>
         )}
         {fieldError("password")}
+        {mode === "login" && <Link className="forgot-link" href="/recuperar">¿Olvidaste tu contraseña?</Link>}
       </div>
 
       {mode === "register" && (

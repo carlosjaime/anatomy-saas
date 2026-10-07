@@ -36,6 +36,10 @@ test("server-renders the atlas for guests", async () => {
 test("auth pages render and the dashboard requires a session", async () => {
   assert.match(await (await render("/login")).text(), /Iniciar sesión/);
   assert.match(await (await render("/registro")).text(), /Crea tu cuenta/);
+  assert.match(await (await render("/recuperar")).text(), /Recupera tu acceso/);
+  assert.match(await (await render("/restablecer?token=x")).text(), /Crea una nueva contraseña/);
+  const account = await render("/cuenta");
+  assert.ok([302, 303, 307, 308].includes(account.status), `expected redirect, got ${account.status}`);
   const dashboard = await render("/dashboard");
   assert.ok([302, 303, 307, 308].includes(dashboard.status), `expected redirect, got ${dashboard.status}`);
   assert.match(dashboard.headers.get("location") ?? "", /\/login\?next=%2Fdashboard/);

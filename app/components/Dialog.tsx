@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -11,6 +11,17 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type Presence = "open" | "closing" | "closed";
+
+const noopSubscribe = () => () => {};
+
+/**
+ * `false` en el servidor y durante la hidratación, `true` después. Evita que
+ * un diálogo abierto desde el primer render (p. ej. `?panel=plans`) genere un
+ * portal en el cliente que el HTML del servidor no tenía.
+ */
+function useIsClient(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
 
 /**
  * Mantiene el contenido montado durante la animación de salida. Sin esto, un
@@ -78,9 +89,10 @@ export function Dialog({
   children,
 }: Props) {
   const presence = usePresence(open);
+  const isClient = useIsClient();
   const panelRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
-  const mounted = presence !== "closed";
+  const mounted = presence !== "closed" && isClient;
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -130,7 +142,7 @@ export function Dialog({
     };
   }, [mounted, initialFocus]);
 
-  if (!mounted || typeof document === "undefined") return null;
+  if (!mounted) return null;
 
   return createPortal(
     <div

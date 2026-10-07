@@ -13,7 +13,10 @@ async function loadDashboard() {
   return { user, now, stats: await getDashboardStats(await getDb(), user.id, now) };
 }
 
-export default async function DashboardPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const { user, stats, now } = await loadDashboard();
-  return <Dashboard user={user} stats={stats} now={now} />;
+  const passwordUpdated = (await searchParams).password === "updated";
+  return <Dashboard user={user} stats={stats} now={now} passwordUpdated={passwordUpdated} />;
 }

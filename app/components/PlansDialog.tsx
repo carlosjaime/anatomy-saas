@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { Check, CreditCard, ShieldCheck } from "lucide-react";
+import { Check, CreditCard, Loader2, ShieldCheck } from "lucide-react";
+import { postJson } from "../lib/client-api";
 import { Dialog } from "./Dialog";
 import {
   ANNUAL_DISCOUNT,
@@ -45,25 +46,45 @@ function AnimatedPrice({ value }: { value: number }) {
   return <span ref={ref}>{formatMXN(value)}</span>;
 }
 
+export type PlansViewer = { trialAvailable: boolean; emailVerified: boolean } | null;
+
 type Props = {
   open: boolean;
   plan: PlanId;
-  onSetPlan: (plan: PlanId) => void;
   onClose: () => void;
-  error?: string | null;
-  signedIn?: boolean;
+  /** `null` para invitados: los planes de pago requieren una cuenta. */
+  viewer: PlansViewer;
 };
 
-export function PlansDialog({ open, plan, onSetPlan, onClose, error = null, signedIn = false }: Props) {
+export function PlansDialog({ open, plan, onClose, viewer }: Props) {
   const [cycle, setCycle] = useState<BillingCycle>("annual");
+  const [pendingPlan, setPendingPlan] = useState<PlanId | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const discountLabel = `${Math.round(ANNUAL_DISCOUNT * 100)} %`;
+  const trial = Boolean(viewer?.trialAvailable);
+
+  const checkout = async (target: PlanId) => {
+    setPendingPlan(target);
+    setError(null);
+    const result = await postJson<{ checkoutUrl: string }>("/api/billing/checkout", { plan: target, cycle });
+    if (result.ok) {
+      // Mercado Pago aloja el formulario de pago; volvemos a /cuenta al terminar.
+      window.location.assign(result.data.checkoutUrl);
+      return;
+    }
+    setPendingPlan(null);
+    setError(result.error);
+  };
 
   return (
     <Dialog open={open} onClose={onClose} labelledBy="plans-title" variant="wide" className="plans-modal">
       <span className="modal-icon clinical"><CreditCard size={24} /></span>
       <em>Planes de Atlas Anatómico</em>
       <h2 id="plans-title">Elige cómo quieres aprender</h2>
-      <p>Precios en pesos mexicanos con IVA incluido. Cambia o cancela cuando quieras.</p>
+      <p>
+        Precios en pesos mexicanos con IVA incluido. Cambia o cancela cuando quieras.
+        {trial && <> <b className="trial-note">Tu primera suscripción incluye 7 días gratis.</b></>}
+      </p>
 
       <div className="billing-toggle" role="radiogroup" aria-label="Ciclo de facturación" data-cycle={cycle}>
         <span className="billing-indicator" aria-hidden="true" />
@@ -108,13 +129,24 @@ export function PlansDialog({ open, plan, onSetPlan, onClose, error = null, sign
               </ul>
               {isCurrent ? (
                 <span className="current-badge">Tu plan actual</span>
+              ) : isFree ? (
+                <Link className="plan-link" href={viewer ? "/cuenta" : "/registro?next=/atlas"}>
+                  {viewer ? "Gestionar en Mi cuenta" : "Crear cuenta gratis"}
+                </Link>
+              ) : !viewer ? (
+                <Link className={`plan-link ${item.highlight ? "primary" : ""}`} href="/registro?next=%2Fatlas%3Fpanel%3Dplans">
+                  Crear cuenta y probar gratis
+                </Link>
               ) : (
                 <button
                   type="button"
                   className={item.highlight ? "primary" : ""}
-                  onClick={() => onSetPlan(item.id)}
+                  disabled={pendingPlan !== null}
+                  aria-busy={pendingPlan === item.id}
+                  onClick={() => checkout(item.id)}
                 >
-                  {isFree ? "Cambiar a Gratis" : `Elegir ${item.name}`}
+                  {pendingPlan === item.id ? <Loader2 size={15} className="spin" /> : null}
+                  {pendingPlan === item.id ? "Abriendo Mercado Pago…" : trial ? "Probar 7 días gratis" : `Elegir ${item.name}`}
                 </button>
               )}
             </article>
@@ -122,12 +154,18 @@ export function PlansDialog({ open, plan, onSetPlan, onClose, error = null, sign
         })}
       </div>
 
-      {error && <p className="form-alert" role="alert">{error}</p>}
-      <p className="plans-trust"><ShieldCheck size={15} /> Pagos con tarjeta, OXXO o transferencia SPEI · Factura CFDI disponible</p>
+      {error && (
+        <p className="form-alert" role="alert">
+          {error} {viewer && !viewer.emailVerified && <Link href="/cuenta">Reenviar correo de confirmación</Link>}
+        </p>
+      )}
+      <p className="plans-trust"><ShieldCheck size={15} /> Pago seguro con Mercado Pago · Cancela cuando quieras desde Mi cuenta</p>
       <small className="plans-disclaimer">
-        {signedIn
-          ? "Vista de demostración: el plan se guarda en tu cuenta, pero no se procesan pagos reales."
-          : <>Vista de demostración sin pagos reales. <Link href="/registro?next=/atlas">Crea una cuenta</Link> para guardar tu plan y tu progreso.</>}
+        {viewer
+          ? trial
+            ? "No se hace ningún cargo durante la prueba. Si cancelas antes de que termine, no pagas nada."
+            : "El cargo se renueva automáticamente cada periodo hasta que canceles."
+          : <>Para suscribirte necesitas una cuenta. <Link href="/registro?next=%2Fatlas%3Fpanel%3Dplans">Créala gratis</Link>.</>}
       </small>
     </Dialog>
   );

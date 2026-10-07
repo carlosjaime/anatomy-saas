@@ -4,19 +4,17 @@ import {
   BookOpenCheck,
   Box,
   CircleHelp,
-  CreditCard,
   Eye,
   Flame,
-  LayoutDashboard,
-  Library,
+  MailWarning,
   Route,
   Sparkles,
   Target,
   TrendingUp,
 } from "lucide-react";
-import { BrandLockup } from "../BrandMark";
 import { ActivityChart } from "./ActivityChart";
-import { LogoutButton } from "./LogoutButton";
+import { ResendVerificationButton } from "../AccountForms";
+import { DashShell } from "./DashShell";
 import { organById, type OrganId } from "../../lib/anatomy-data";
 import { studyGuides } from "../../lib/encyclopedia-data";
 import { hasFeature, planById } from "../../lib/plans";
@@ -55,7 +53,7 @@ function nextStepFor(item: OrganProgress): string {
   return "Repasa la correlación clínica en la enciclopedia.";
 }
 
-export function Dashboard({ user, stats, now }: { user: SessionUser; stats: DashboardStats; now: number }) {
+export function Dashboard({ user, stats, now, passwordUpdated = false }: { user: SessionUser; stats: DashboardStats; now: number; passwordUpdated?: boolean }) {
   const plan = planById[user.plan];
   const role = ROLE_OPTIONS.find((option) => option.id === user.role)?.label ?? "Profesional de la salud";
   const firstName = user.name.split(" ")[0];
@@ -71,23 +69,7 @@ export function Dashboard({ user, stats, now }: { user: SessionUser; stats: Dash
   ];
 
   return (
-    <div className="dash">
-      <aside className="dash-sidebar" aria-label="Navegación del panel">
-        <Link href="/" className="brand" aria-label="Atlas Anatómico, inicio"><BrandLockup compact /></Link>
-        <nav>
-          <Link href="/dashboard" aria-current="page"><LayoutDashboard size={18} /> <span>Resumen</span></Link>
-          <Link href="/atlas"><Box size={18} /> <span>Atlas 3D</span></Link>
-          <Link href="/atlas?panel=encyclopedia"><Library size={18} /> <span>Enciclopedia</span></Link>
-          <Link href="/atlas?panel=plans"><CreditCard size={18} /> <span>Planes</span></Link>
-        </nav>
-        <div className="dash-user">
-          <span className="avatar">{firstName.slice(0, 1).toUpperCase()}</span>
-          <div><b>{user.name}</b><small>{role}</small></div>
-        </div>
-        <LogoutButton className="dash-logout" />
-      </aside>
-
-      <main className="dash-main">
+    <DashShell user={user} active="dashboard">
         <header className="dash-header" data-animate-in>
           <div>
             <span className="eyebrow">{greeting(now)}, {firstName}</span>
@@ -100,10 +82,19 @@ export function Dashboard({ user, stats, now }: { user: SessionUser; stats: Dash
             {user.plan === "free" ? (
               <Link href="/atlas?panel=plans">Mejorar desde $129 MXN <ArrowRight size={14} /></Link>
             ) : (
-              <Link href="/atlas?panel=plans">Gestionar plan <ArrowRight size={14} /></Link>
+              <Link href="/cuenta">Gestionar suscripción <ArrowRight size={14} /></Link>
             )}
           </div>
         </header>
+
+        {passwordUpdated && <p className="form-success" role="status">Tu contraseña se actualizó y cerramos tus demás sesiones.</p>}
+        {!user.emailVerified && (
+          <div className="verify-banner" role="status">
+            <MailWarning size={18} />
+            <p><b>Confirma tu correo</b> para poder suscribirte. Te enviamos un enlace a {user.email}.</p>
+            <ResendVerificationButton />
+          </div>
+        )}
 
         <section className="kpi-grid" aria-label="Indicadores">
           {kpis.map(({ icon: Icon, label, value, suffix }, index) => (
@@ -188,7 +179,6 @@ export function Dashboard({ user, stats, now }: { user: SessionUser; stats: Dash
             </dl>
           </section>
         </div>
-      </main>
-    </div>
+    </DashShell>
   );
 }
