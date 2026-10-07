@@ -154,7 +154,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
       {selected && (
         <div className="hotspot-callout" ref={calloutRef} data-side="right">
           <div className="callout-body" style={{ "--hotspot-color": selected.color } as React.CSSProperties}>
-            <button className="callout-close" type="button" onClick={() => viewerRef.current?.clearSelection()} aria-label="Close">
+            <button className="callout-close" type="button" onClick={() => viewerRef.current?.clearSelection()} aria-label="Cerrar">
               <X size={13} />
             </button>
             <b>{selected.label}</b>
