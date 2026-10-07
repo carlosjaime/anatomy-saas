@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { Check, CreditCard, ShieldCheck } from "lucide-react";
@@ -49,9 +50,11 @@ type Props = {
   plan: PlanId;
   onSetPlan: (plan: PlanId) => void;
   onClose: () => void;
+  error?: string | null;
+  signedIn?: boolean;
 };
 
-export function PlansDialog({ open, plan, onSetPlan, onClose }: Props) {
+export function PlansDialog({ open, plan, onSetPlan, onClose, error = null, signedIn = false }: Props) {
   const [cycle, setCycle] = useState<BillingCycle>("annual");
   const discountLabel = `${Math.round(ANNUAL_DISCOUNT * 100)} %`;
 
@@ -119,8 +122,13 @@ export function PlansDialog({ open, plan, onSetPlan, onClose }: Props) {
         })}
       </div>
 
+      {error && <p className="form-alert" role="alert">{error}</p>}
       <p className="plans-trust"><ShieldCheck size={15} /> Pagos con tarjeta, OXXO o transferencia SPEI · Factura CFDI disponible</p>
-      <small className="plans-disclaimer">Vista de demostración: el cambio de plan es local a este dispositivo y no procesa pagos reales.</small>
+      <small className="plans-disclaimer">
+        {signedIn
+          ? "Vista de demostración: el plan se guarda en tu cuenta, pero no se procesan pagos reales."
+          : <>Vista de demostración sin pagos reales. <Link href="/registro?next=/atlas">Crea una cuenta</Link> para guardar tu plan y tu progreso.</>}
+      </small>
     </Dialog>
   );
 }

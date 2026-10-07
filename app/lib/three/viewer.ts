@@ -4,6 +4,7 @@ import gsap from "gsap";
 import type { Hotspot } from "../anatomy-data";
 import { AnatomyAssetManager, type LoadedOrgan } from "./loaders";
 import { HotspotLayer } from "./hotspots";
+import { IDENTITY_SAMPLE, sampleMotion, type MotionProfile, type MotionSample } from "./motion";
 
 type ViewerCallbacks = {
   onLoading: (loading: boolean, progress: number) => void;
@@ -13,6 +14,9 @@ type ViewerCallbacks = {
 const DOT_PIXELS = 34;
 const CAMERA_FOV = 34;
 const DEPTH_PREPASS = "depth-prepass";
+const MOTION_GROUP = "organ-motion";
+/** Camera distance used when the guided tour frames a single structure. */
+const FOCUS_DISTANCE = 6.4;
 const PLINTH_Y = -2.5;
 const PLINTH_TOP = PLINTH_Y + 0.17;
 /** Slightly above eye level, so the plinth reads as a disc the organ sits on
@@ -66,6 +70,16 @@ export class AnatomyViewer {
   private calloutEl: HTMLElement | null = null;
   private fadeTween: gsap.core.Tween | null = null;
   private disposed = false;
+
+  // Physiological motion: sampled each frame and blended in/out smoothly.
+  private motionGroup: THREE.Group | null = null;
+  private motionProfile: MotionProfile | null = null;
+  private physiologyWanted = false;
+  private motionBlend = { value: 0 };
+  private motionTween: gsap.core.Tween | null = null;
+  private motionTime = 0;
+  private motionSample: MotionSample = { ...IDENTITY_SAMPLE };
+  private focusTimeline: gsap.core.Timeline | null = null;
 
   constructor(container: HTMLElement, callbacks: ViewerCallbacks) {
     this.container = container;
@@ -143,7 +157,7 @@ export class AnatomyViewer {
 
   private buildEnvironment() {
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.42));
-    this.scene.add(new THREE.HemisphereLight(0xfff8ee, 0x33252d, 0.72));
+    this.scene.add(new THREE.HemisphereLight(0xf6fbff, 0x1f2b35, 0.72));
 
     const key = new THREE.DirectionalLight(0xfff3e7, 3.5);
     key.position.set(4.8, 6.5, 6.8);
@@ -166,7 +180,7 @@ export class AnatomyViewer {
 
     this.plinth = new THREE.Mesh(
       new THREE.CylinderGeometry(2.3, 2.48, 0.34, 56),
-      new THREE.MeshStandardMaterial({ color: 0xead7c1, roughness: 0.78, metalness: 0 }),
+      new THREE.MeshStandardMaterial({ color: 0xdfe7ed, roughness: 0.62, metalness: 0.04 }),
     );
     this.plinth.position.y = PLINTH_Y;
     this.scene.add(this.plinth);
@@ -197,7 +211,7 @@ export class AnatomyViewer {
     this.scene.add(
       new THREE.Points(
         particleGeometry,
-        new THREE.PointsMaterial({ color: 0xe7a18e, size: 0.013, transparent: true, opacity: 0.16 }),
+        new THREE.PointsMaterial({ color: 0x7fb3c2, size: 0.014, transparent: true, opacity: 0.22 }),
       ),
     );
   }
@@ -208,8 +222,8 @@ export class AnatomyViewer {
     const width = 16;
     const height = 32;
     const data = new Uint8Array(width * height * 4);
-    const top = new THREE.Color(0xfff3e4);
-    const bottom = new THREE.Color(0x6b4f45);
+    const top = new THREE.Color(0xf7fbff);
+    const bottom = new THREE.Color(0x3c4c58);
     const mixed = new THREE.Color();
     for (let y = 0; y < height; y += 1) {
       mixed.copy(bottom).lerp(top, Math.pow(1 - y / (height - 1), 0.7));
@@ -239,9 +253,11 @@ export class AnatomyViewer {
     this.assets.prefetch(url);
   }
 
-  async setOrgan(modelUrl: string, hotspots: Hotspot[], accent: string) {
+  async setOrgan(modelUrl: string, hotspots: Hotspot[], accent: string, motion: MotionProfile | null = null) {
     const request = ++this.loadRequest;
     this.select(null);
+    this.focusTimeline?.kill();
+    this.focusTimeline = null;
     this.callbacks.onLoading(true, 0);
 
     const outgoing = this.organ;
@@ -261,6 +277,7 @@ export class AnatomyViewer {
       });
       this.assets.release(outgoing);
       this.organ = null;
+      this.motionGroup = null;
       this.dirty = true;
     }
 
@@ -278,6 +295,9 @@ export class AnatomyViewer {
     if (request !== this.loadRequest || this.disposed) return;
 
     this.organ = organ;
+    this.motionGroup = ensureMotionGroup(organ.pivot);
+    this.motionProfile = motion;
+    this.motionTime = 0;
     organ.pivot.scale.setScalar(1);
     organ.pivot.position.set(0, 0, 0);
     this.scene.add(organ.pivot);
@@ -392,6 +412,7 @@ export class AnatomyViewer {
       this.dirty = true;
     }
     if (this.hoverProbe) this.resolveHover();
+    this.applyMotion(delta);
     if (!this.dirty && now >= this.busyUntil) return;
 
     if (!this.hotspots.update(this.camera, delta, this.selectedId, this.hoveredId)) this.dirty = true;
@@ -401,6 +422,17 @@ export class AnatomyViewer {
     this.positionCallout();
     this.renderer.render(this.scene, this.camera);
   };
+
+  private applyMotion(delta: number) {
+    const group = this.motionGroup;
+    const blend = this.motionBlend.value;
+    if (!group || !this.motionProfile || blend <= 0) return;
+    this.motionTime += delta;
+    const sample = sampleMotion(this.motionProfile, this.motionTime, this.motionSample);
+    group.scale.set(1 + (sample.sx - 1) * blend, 1 + (sample.sy - 1) * blend, 1 + (sample.sz - 1) * blend);
+    group.rotation.set(sample.rx * blend, sample.ry * blend, sample.rz * blend);
+    this.dirty = true;
+  }
 
   private busy(seconds: number) {
     this.busyUntil = Math.max(this.busyUntil, performance.now() + seconds * 1000);
@@ -533,7 +565,71 @@ export class AnatomyViewer {
     this.dirty = true;
   }
 
+  /** Blends the organ's physiological motion in or out over ~0.6 s. */
+  setPhysiology(enabled: boolean) {
+    if (this.physiologyWanted === enabled) return;
+    this.physiologyWanted = enabled;
+    this.motionTween?.kill();
+    this.motionTween = gsap.to(this.motionBlend, {
+      value: enabled ? 1 : 0,
+      duration: enabled ? 0.6 : 0.45,
+      ease: "power2.inOut",
+      onUpdate: () => (this.dirty = true),
+      onComplete: () => {
+        if (!enabled && this.motionGroup) {
+          this.motionGroup.scale.set(1, 1, 1);
+          this.motionGroup.rotation.set(0, 0, 0);
+          this.dirty = true;
+        }
+      },
+    });
+    this.busy(0.7);
+  }
+
+  /**
+   * Turns the organ so a structure faces the viewer, frames it and selects
+   * it — the camera move behind the guided tour. Returns false when the
+   * hotspot is unknown (e.g. the organ is still loading).
+   */
+  focusHotspot(id: string): boolean {
+    const organ = this.organ;
+    const marker = this.hotspots.list.find((item) => item.hotspot.id === id);
+    if (!organ || !marker) return false;
+
+    organ.pivot.updateWorldMatrix(true, true);
+    const point = marker.dot.getWorldPosition(new THREE.Vector3());
+    const center = organ.pivot.getWorldPosition(new THREE.Vector3());
+    const target = this.controls.target;
+    const cameraAzimuth = Math.atan2(this.camera.position.x - target.x, this.camera.position.z - target.z);
+    const pointAzimuth = Math.atan2(point.x - center.x, point.z - center.z);
+    // Shortest signed turn that brings the structure round to the camera side.
+    const turn = Math.atan2(Math.sin(cameraAzimuth - pointAzimuth), Math.cos(cameraAzimuth - pointAzimuth));
+
+    const nextTarget = new THREE.Vector3(center.x, THREE.MathUtils.lerp(HOME_TARGET.y, point.y, 0.55), center.z);
+    const direction = this.camera.position.clone().sub(target);
+    direction.y = 0;
+    if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
+    direction.normalize();
+    const lift = THREE.MathUtils.clamp(point.y * 0.35, -0.6, 1.2) + 0.45;
+    // Portrait viewports have a narrow horizontal field of view: back off so
+    // the whole organ stays in frame around the focused structure.
+    const distance = Math.min(11, FOCUS_DISTANCE * Math.max(1, 0.95 / this.camera.aspect));
+    const nextCamera = nextTarget.clone().addScaledVector(direction, distance).setY(nextTarget.y + lift);
+
+    this.interactionUntil = performance.now() + 1200;
+    this.focusTimeline?.kill();
+    this.busy(1.3);
+    this.focusTimeline = gsap.timeline({ onUpdate: () => (this.dirty = true) })
+      .to(organ.pivot.rotation, { y: organ.pivot.rotation.y + turn, duration: 1.1, ease: "power3.inOut" }, 0)
+      .to(this.camera.position, { x: nextCamera.x, y: nextCamera.y, z: nextCamera.z, duration: 1.1, ease: "power3.inOut" }, 0)
+      .to(this.controls.target, { x: nextTarget.x, y: nextTarget.y, z: nextTarget.z, duration: 1.1, ease: "power3.inOut" }, 0);
+    this.select(id);
+    return true;
+  }
+
   reset() {
+    this.focusTimeline?.kill();
+    this.focusTimeline = null;
     this.select(null);
     this.tween(this.camera.position, { ...HOME_CAMERA, duration: 0.8, ease: "power3.out" });
     this.tween(this.controls.target, { ...HOME_TARGET, duration: 0.8, ease: "power3.out" });
@@ -602,6 +698,8 @@ export class AnatomyViewer {
     this.loadRequest += 1;
     cancelAnimationFrame(this.frame);
     gsap.killTweensOf(this.camera.position);
+    this.focusTimeline?.kill();
+    this.motionTween?.kill();
     this.controls.removeEventListener("start", this.onControlStart);
     this.controls.dispose();
     this.resizeObserver.disconnect();
@@ -631,12 +729,30 @@ function contactShadowTexture() {
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d")!;
   const gradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.04, size / 2, size / 2, size * 0.5);
-  gradient.addColorStop(0, "rgba(94, 62, 42, 0.62)");
-  gradient.addColorStop(0.45, "rgba(94, 62, 42, 0.26)");
-  gradient.addColorStop(1, "rgba(94, 62, 42, 0)");
+  gradient.addColorStop(0, "rgba(28, 48, 66, 0.58)");
+  gradient.addColorStop(0.45, "rgba(28, 48, 66, 0.22)");
+  gradient.addColorStop(1, "rgba(28, 48, 66, 0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
+}
+
+/**
+ * Wraps the model in a group the physiological motion can scale about the
+ * organ's centre, leaving the pivot (rotation, intro tween) and the hotspot
+ * layer untouched. Idempotent, so cached organs keep their single wrapper.
+ */
+function ensureMotionGroup(pivot: THREE.Group): THREE.Group {
+  const existing = pivot.getObjectByName(MOTION_GROUP) as THREE.Group | undefined;
+  const group = existing ?? new THREE.Group();
+  if (!existing) {
+    group.name = MOTION_GROUP;
+    [...pivot.children].forEach((child) => group.add(child));
+    pivot.add(group);
+  }
+  group.scale.set(1, 1, 1);
+  group.rotation.set(0, 0, 0);
+  return group;
 }

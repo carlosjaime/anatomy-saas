@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import {
@@ -12,7 +13,12 @@ import {
   Compass,
   CreditCard,
   FileText,
+  GraduationCap,
   Heart,
+  LayoutDashboard,
+  Lightbulb,
+  Route,
+  Target,
   LayoutGrid,
   Library,
   Lock,
@@ -27,13 +33,16 @@ import {
   User,
   X,
 } from "lucide-react";
-import { OrganViewer } from "./OrganViewer";
+import { OrganViewer, type OrganViewerHandle } from "./OrganViewer";
+import { BrandLockup } from "./BrandMark";
 import { Dialog } from "./Dialog";
 import { PlansDialog } from "./PlansDialog";
 import { Encyclopedia, type EncyclopediaTab } from "./Encyclopedia";
 import { organById, organs, type Organ, type OrganId } from "../lib/anatomy-data";
 import { hasFeature, parsePlan, planById, type PlanId } from "../lib/plans";
-import type { ChatGPTUser } from "../chatgpt-auth";
+import { studyGuides } from "../lib/encyclopedia-data";
+import { logout, postJson, trackStudy } from "../lib/client-api";
+import type { SessionUser } from "../lib/server/auth-store";
 
 type LearningType = "lesson" | "quiz" | "animation" | "system";
 type Overlay = "learning" | "plans" | "encyclopedia" | null;
@@ -98,28 +107,31 @@ function OrganArt({
 const SYSTEMS = Array.from(new Set(organs.map((organ) => organ.system)));
 
 type Props = {
-  user: ChatGPTUser | null;
-  signInHref: string;
-  signOutHref: string;
+  user: SessionUser | null;
+  initialOrganId?: OrganId;
+  initialOverlay?: "encyclopedia" | "plans" | null;
 };
 
-export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
-  const [organId, setOrganId] = useState<OrganId>("heart");
+export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = null }: Props) {
+  const [organId, setOrganId] = useState<OrganId>(initialOrganId);
   const [autoRotate, setAutoRotate] = useState(true);
+  const [physiology, setPhysiology] = useState(true);
   const [compare, setCompare] = useState(false);
-  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [overlay, setOverlay] = useState<Overlay>(initialOverlay);
   const [learningType, setLearningType] = useState<LearningType>("lesson");
   const [encyclopediaTab, setEncyclopediaTab] = useState<EncyclopediaTab>("articles");
   const [query, setQuery] = useState("");
   const [activeSystem, setActiveSystem] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileLibrary, setMobileLibrary] = useState(false);
-  const [plan, setPlanState] = useState<PlanId>("free");
+  const [plan, setPlanState] = useState<PlanId>(user?.plan ?? "free");
+  const [planError, setPlanError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<OrganId>>(new Set());
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
+  const viewerHandle = useRef<OrganViewerHandle>(null);
   const prefetched = useRef(new Set<OrganId>());
   const organ = organById[organId];
   const reference = organById[organId === "heart" ? "brain" : "heart"];
@@ -131,23 +143,46 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
   // desync the SSR markup from the client's first paint. This single
   // post-hydration sync is the correct fix for that, not a cascading loop.
   useEffect(() => {
+    // Physiological motion is opt-out for people who asked the OS for less motion.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setPhysiology(false);
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPlanState(parsePlan(window.localStorage.getItem(PLAN_KEY)));
+      // Signed-in users get their plan from the server; guests from this device.
+      if (!user) setPlanState(parsePlan(window.localStorage.getItem(PLAN_KEY)));
       setFavorites(parseFavorites(window.localStorage.getItem(FAVORITES_KEY)));
     } catch {
       // Private browsing or a disabled storage API — the app still works,
       // it just won't remember the plan or favorites between visits.
     }
-  }, []);
+  }, [user]);
 
-  const setPlan = (next: PlanId) => {
+  // Record organ views for signed-in users (the server dedupes repeats).
+  useEffect(() => {
+    if (user) trackStudy({ organId, kind: "view" });
+  }, [user, organId]);
+
+  const setPlan = async (next: PlanId) => {
+    const previous = plan;
     setPlanState(next);
-    try {
-      window.localStorage.setItem(PLAN_KEY, next);
-    } catch {
-      // See the read above — storage may simply be unavailable.
+    setPlanError(null);
+    if (!user) {
+      try {
+        window.localStorage.setItem(PLAN_KEY, next);
+      } catch {
+        // See the read above — storage may simply be unavailable.
+      }
+      return;
     }
+    const result = await postJson<{ plan: PlanId }>("/api/account/plan", { plan: next });
+    if (!result.ok) {
+      setPlanState(previous);
+      setPlanError(result.error);
+    }
+  };
+
+  const signOut = async () => {
+    await logout();
+    window.location.assign("/");
   };
 
   const toggleFavorite = (id: OrganId) => {
@@ -281,10 +316,9 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <button className="brand" type="button" onClick={goHome} aria-label="Atlas Anatómico, inicio">
-          <strong>Atlas Anatómico<sup>✦</sup></strong>
-          <em>Anatomía 3D para profesionales de la salud</em>
-        </button>
+        <Link className="brand" href="/" aria-label="Atlas Anatómico, página principal">
+          <BrandLockup />
+        </Link>
         <nav className="main-nav" aria-label="Navegación principal">
           <button className={overlay !== "encyclopedia" ? "active" : ""} type="button" onClick={goHome}>
             <Compass size={17} /> <span>Explorar</span>
@@ -310,7 +344,7 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
             onClick={() => setAccountOpen((open) => !open)}
             aria-expanded={accountOpen}
           >
-            <span>{user ? initials(user.displayName) : <User size={16} />}</span>
+            <span>{user ? initials(user.name) : <User size={16} />}</span>
             <ChevronDown size={15} className={accountOpen ? "chevron open" : "chevron"} />
           </button>
           {accountOpen && (
@@ -318,30 +352,36 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
               {user ? (
                 <>
                   <div className="account-summary">
-                    <b>{user.displayName}</b>
+                    <b>{user.name}</b>
                     <small>{user.email}</small>
                     <span className={`plan-badge ${plan}`}>Plan {currentPlan.name}</span>
                   </div>
+                  <Link href="/dashboard" role="menuitem" className="dropdown-link">
+                    <LayoutDashboard size={15} /> Mi panel de estudio
+                  </Link>
                   <button type="button" role="menuitem" onClick={() => { setOverlay("plans"); setAccountOpen(false); }}>
                     <CreditCard size={15} /> {plan === "free" ? "Ver planes en MXN" : "Gestionar suscripción"}
                   </button>
-                  <a href={signOutHref} role="menuitem" className="dropdown-link">
+                  <button type="button" role="menuitem" onClick={signOut}>
                     <LogOut size={15} /> Cerrar sesión
-                  </a>
+                  </button>
                 </>
               ) : (
                 <>
                   <div className="account-summary">
-                    <b>Invitado</b>
-                    <small>Inicia sesión para guardar tu progreso</small>
+                    <b>Modo invitado</b>
+                    <small>Crea una cuenta para guardar tu progreso y ver tu panel de estudio.</small>
                     <span className={`plan-badge ${plan}`}>Plan {currentPlan.name}</span>
                   </div>
                   <button type="button" role="menuitem" onClick={() => { setOverlay("plans"); setAccountOpen(false); }}>
                     <CreditCard size={15} /> Ver planes en MXN
                   </button>
-                  <a href={signInHref} role="menuitem" className="dropdown-link primary">
+                  <Link href="/registro?next=/atlas" role="menuitem" className="dropdown-link primary">
+                    <GraduationCap size={15} /> Crear cuenta gratis
+                  </Link>
+                  <Link href="/login?next=/atlas" role="menuitem" className="dropdown-link">
                     <User size={15} /> Iniciar sesión
-                  </a>
+                  </Link>
                 </>
               )}
             </div>
@@ -436,6 +476,10 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
 
         <div className="viewer-slot" data-intro>
           <OrganViewer
+            ref={viewerHandle}
+            physiology={physiology}
+            onPhysiology={setPhysiology}
+            onTourComplete={() => { if (user) trackStudy({ organId, kind: "tour" }); }}
             organ={organ}
             autoRotate={autoRotate}
             onAutoRotate={setAutoRotate}
@@ -460,9 +504,20 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
                   </span>
                 </div>
                 <p className="description" data-reveal>{organ.description}</p>
-                <button type="button" className="ency-link" data-reveal onClick={() => openEncyclopedia("articles")}>
-                  <BookOpen size={14} /> Leer artículo completo <ArrowRight size={13} />
-                </button>
+                <div className="info-cta-row" data-reveal>
+                  <button type="button" className="tour-cta" onClick={() => viewerHandle.current?.startTour()}>
+                    <Route size={15} /> Recorrido guiado
+                  </button>
+                  <button type="button" className="ency-link" onClick={() => openEncyclopedia("articles")}>
+                    <BookOpen size={14} /> Artículo completo <ArrowRight size={13} />
+                  </button>
+                </div>
+                <section className="study-guide" data-reveal aria-labelledby="objectives-title">
+                  <h2 id="objectives-title"><Target size={13} /> Objetivos de aprendizaje</h2>
+                  <ol>
+                    {studyGuides[organ.id].objectives.map((objective) => <li key={objective}>{objective}</li>)}
+                  </ol>
+                </section>
               </div>
               <div className="info-body">
                 <h2 data-reveal>Datos clave</h2>
@@ -475,6 +530,12 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
                   <div data-reveal><dt><span>◈</span> Función</dt><dd>{organ.function}</dd></div>
                 </dl>
                 <div className="medical-note" data-reveal><Stethoscope size={16} /><p><b>Importancia médica</b>{organ.medical}</p></div>
+                <section className="high-yield" data-reveal aria-labelledby="high-yield-title">
+                  <h2 id="high-yield-title"><Lightbulb size={13} /> Alto rendimiento</h2>
+                  <ul>
+                    {studyGuides[organ.id].highYield.map((point) => <li key={point}>{point}</li>)}
+                  </ul>
+                </section>
                 <div className="fun-note" data-reveal><Sparkles size={15} /><p><b>¿Sabías que…?</b>{organ.funFact}</p></div>
                 <button type="button" className="lesson-button" data-reveal onClick={() => openLearning("lesson")}>Ver lección <ArrowRight size={16} /></button>
                 <div className="action-grid" data-reveal>
@@ -511,10 +572,12 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
         </section>
       ) : (
         <section className="learning-cards" ref={cardsRef} data-intro aria-label={`Recursos de aprendizaje de ${organ.name}`}>
-          <article className="curiosity-card">
-            <span>✿</span><p>Aprender es<br />un acto de curiosidad.</p><em>¡Sigue explorando!</em>
+          <article className="curiosity-card pearl-card">
+            <span className="pearl-icon"><Stethoscope size={18} /></span>
+            <em>Perla clínica</em>
+            <p>{studyGuides[organ.id].pearl}</p>
             <button type="button" className="curiosity-cta" onClick={() => openEncyclopedia("flashcards")}>
-              Estudiar con tarjetas <ArrowRight size={14} />
+              Repasar con tarjetas <ArrowRight size={14} />
             </button>
           </article>
           <article>
@@ -583,8 +646,21 @@ export function AnatomyApp({ user, signInHref, signOutHref }: Props) {
         </button>
       </nav>
 
-      <LearningDialog open={overlay === "learning"} type={learningType} organ={organ} onClose={closeOverlay} />
-      <PlansDialog open={overlay === "plans"} plan={plan} onSetPlan={setPlan} onClose={closeOverlay} />
+      <LearningDialog
+        open={overlay === "learning"}
+        type={learningType}
+        organ={organ}
+        onClose={closeOverlay}
+        onAnswer={(correct) => { if (user) trackStudy({ organId, kind: "quiz", correct }); }}
+      />
+      <PlansDialog
+        open={overlay === "plans"}
+        plan={plan}
+        onSetPlan={setPlan}
+        onClose={closeOverlay}
+        error={planError}
+        signedIn={Boolean(user)}
+      />
       <Encyclopedia
         open={overlay === "encyclopedia"}
         onClose={closeOverlay}
@@ -649,7 +725,15 @@ const LEARNING_ICON: Record<LearningType, string> = {
   lesson: "✦",
 };
 
-function LearningDialog({ open, type, organ, onClose }: { open: boolean; type: LearningType; organ: Organ; onClose: () => void }) {
+type LearningDialogProps = {
+  open: boolean;
+  type: LearningType;
+  organ: Organ;
+  onClose: () => void;
+  onAnswer: (correct: boolean) => void;
+};
+
+function LearningDialog({ open, type, organ, onClose, onAnswer }: LearningDialogProps) {
   return (
     <Dialog
       open={open}
@@ -658,12 +742,12 @@ function LearningDialog({ open, type, organ, onClose }: { open: boolean; type: L
       variant={type === "system" ? "wide" : "center"}
       className="learning-modal"
     >
-      <LearningContent type={type} organ={organ} onClose={onClose} />
+      <LearningContent type={type} organ={organ} onClose={onClose} onAnswer={onAnswer} />
     </Dialog>
   );
 }
 
-function LearningContent({ type, organ, onClose }: { type: LearningType; organ: Organ; onClose: () => void }) {
+function LearningContent({ type, organ, onClose, onAnswer }: Omit<LearningDialogProps, "open">) {
   const [answer, setAnswer] = useState<number | null>(null);
   const organName = organ.name;
   const title =
@@ -689,7 +773,7 @@ function LearningContent({ type, organ, onClose }: { type: LearningType; organ: 
                 type="button"
                 disabled={revealed}
                 className={revealed ? (isCorrect ? "correct" : isChosen ? "incorrect" : "") : ""}
-                onClick={() => setAnswer(index)}
+                onClick={() => { setAnswer(index); onAnswer(index === organ.quiz.correctIndex); }}
               >
                 {option}
                 {revealed && isCorrect && <Check size={15} />}

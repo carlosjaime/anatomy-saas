@@ -38,7 +38,7 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Atlas Anatómico — Anatomía 3D para estudiantes y profesionales de la salud",
+  title: "Atlas Anatómico — Anatomía clínica 3D para medicina",
   description:
     "Explora órganos en 3D con precisión médica —corazón, cerebro, pulmones, hígado, riñones, ojo, intestino, páncreas y piel— en una plataforma interactiva pensada para el aprendizaje clínico.",
   applicationName: "Atlas Anatómico",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f0e7",
+  themeColor: "#0b7a8a",
 };
 
 export default function RootLayout({

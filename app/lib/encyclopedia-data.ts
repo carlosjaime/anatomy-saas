@@ -389,3 +389,132 @@ export function searchEncyclopedia(query: string, organList: readonly Searchable
     .slice(0, limit)
     .map(({ hit }) => hit);
 }
+
+export type StudyGuide = {
+  /** Lo que el estudiante debe poder hacer al terminar la unidad. */
+  objectives: readonly string[];
+  /** Conceptos de alto rendimiento para exámenes (ENARM, departamentales). */
+  highYield: readonly string[];
+  /** Perla clínica breve para conectar anatomía y práctica. */
+  pearl: string;
+};
+
+export const studyGuides: Record<OrganId, StudyGuide> = {
+  heart: {
+    objectives: [
+      "Identificar las cuatro cámaras y las cuatro válvulas cardíacas en el modelo.",
+      "Describir el trayecto del impulso eléctrico desde el nodo sinoauricular hasta las fibras de Purkinje.",
+      "Relacionar cada arteria coronaria con el territorio miocárdico que irriga.",
+    ],
+    highYield: [
+      "La coronaria derecha irriga el nodo sinoauricular en cerca del 60 % de las personas.",
+      "Foco mitral: 5.º espacio intercostal izquierdo, línea medioclavicular.",
+      "Gasto cardíaco = frecuencia cardíaca × volumen sistólico.",
+    ],
+    pearl: "Un infarto inferior (DII, DIII, aVF) suele comprometer la coronaria derecha: vigila bradicardia y bloqueos AV.",
+  },
+  brain: {
+    objectives: [
+      "Ubicar los lóbulos cerebrales y su función predominante.",
+      "Reconocer los componentes del polígono de Willis y su importancia colateral.",
+      "Correlacionar un déficit neurológico focal con el territorio vascular afectado.",
+    ],
+    highYield: [
+      "Área de Broca (frontal inferior) → afasia motora; área de Wernicke (temporal superior) → afasia sensitiva.",
+      "La arteria cerebral media es el territorio más afectado en el evento vascular cerebral isquémico.",
+      "El líquido cefalorraquídeo se produce en los plexos coroideos (~500 mL/día).",
+    ],
+    pearl: "Hemiparesia faciobraquial con afasia sugiere oclusión de la arteria cerebral media izquierda.",
+  },
+  lungs: {
+    objectives: [
+      "Distinguir los lóbulos y cisuras de cada pulmón.",
+      "Explicar la relación ventilación/perfusión y su efecto en la oxigenación.",
+      "Describir la función de los neumocitos tipo I y tipo II.",
+    ],
+    highYield: [
+      "El bronquio principal derecho es más corto, ancho y vertical: ahí van los cuerpos extraños aspirados.",
+      "El surfactante (neumocitos tipo II) reduce la tensión superficial alveolar.",
+      "Espirometría obstructiva: FEV1/FVC < 0.70 tras broncodilatador.",
+    ],
+    pearl: "La neumonía por aspiración en decúbito afecta con más frecuencia el segmento superior del lóbulo inferior derecho.",
+  },
+  liver: {
+    objectives: [
+      "Describir la segmentación funcional de Couinaud.",
+      "Explicar el aporte vascular dual: vena porta y arteria hepática.",
+      "Interpretar un patrón hepatocelular frente a uno colestásico en las pruebas de función hepática.",
+    ],
+    highYield: [
+      "La vena porta aporta ~75 % del flujo hepático; la arteria hepática, ~25 %.",
+      "Triada portal: vena porta, arteria hepática y conducto biliar.",
+      "La zona 3 del acino (centrolobulillar) es la más sensible a la isquemia y a la toxicidad por paracetamol.",
+    ],
+    pearl: "Ascitis, várices esofágicas y esplenomegalia orientan a hipertensión portal: busca la causa de la cirrosis.",
+  },
+  kidneys: {
+    objectives: [
+      "Identificar las partes de la nefrona y la función de cada segmento.",
+      "Explicar cómo se regula la tasa de filtración glomerular.",
+      "Describir el sistema renina-angiotensina-aldosterona.",
+    ],
+    highYield: [
+      "El túbulo contorneado proximal reabsorbe ~65 % del sodio filtrado.",
+      "Los diuréticos de asa actúan en la rama ascendente gruesa (cotransportador Na-K-2Cl).",
+      "Los riñones están entre T12 y L3; el derecho es más bajo por el hígado.",
+    ],
+    pearl: "En México, diabetes e hipertensión son las principales causas de enfermedad renal crónica: tamiza con albuminuria.",
+  },
+  eyeball: {
+    objectives: [
+      "Nombrar las tres túnicas del globo ocular y sus componentes.",
+      "Describir la vía de formación y drenaje del humor acuoso.",
+      "Explicar el reflejo fotomotor y su vía aferente y eferente.",
+    ],
+    highYield: [
+      "El humor acuoso se produce en el cuerpo ciliar y drena por la malla trabecular y el canal de Schlemm.",
+      "Reflejo fotomotor: aferencia por el nervio óptico (II), eferencia por el oculomotor (III).",
+      "La fóvea contiene solo conos: máxima agudeza visual.",
+    ],
+    pearl: "Ojo rojo doloroso, visión borrosa y pupila en midriasis media arreactiva: sospecha glaucoma agudo y refiere de urgencia.",
+  },
+  intestine: {
+    objectives: [
+      "Diferenciar duodeno, yeyuno e íleon por su anatomía y función.",
+      "Relacionar cada segmento con los nutrientes que absorbe.",
+      "Describir la irrigación por las arterias mesentéricas superior e inferior.",
+    ],
+    highYield: [
+      "Hierro y calcio se absorben en el duodeno; vitamina B12 y sales biliares en el íleon terminal.",
+      "El ángulo de Treitz separa el tubo digestivo alto del bajo.",
+      "El divertículo de Meckel sigue la regla de los 2: 2 % de la población, a 2 pies de la válvula ileocecal.",
+    ],
+    pearl: "Dolor periumbilical que migra a fosa ilíaca derecha: punto de McBurney y escala de Alvarado para apendicitis.",
+  },
+  pancreas: {
+    objectives: [
+      "Describir las porciones del páncreas y sus relaciones anatómicas.",
+      "Distinguir la función exocrina de la endocrina y sus tipos celulares.",
+      "Explicar el drenaje del conducto pancreático en la ampolla de Vater.",
+    ],
+    highYield: [
+      "Células β → insulina; α → glucagón; δ → somatostatina.",
+      "La cabeza del páncreas está enmarcada por el duodeno; la cola llega al hilio esplénico.",
+      "Pancreatitis aguda: 2 de 3 criterios (dolor típico, lipasa > 3× el límite superior, imagen compatible).",
+    ],
+    pearl: "Ictericia indolora con vesícula palpable (signo de Courvoisier-Terrier) sugiere tumor de cabeza de páncreas.",
+  },
+  skin: {
+    objectives: [
+      "Identificar las capas de la piel y los estratos de la epidermis.",
+      "Describir las funciones de barrera, termorregulación y síntesis de vitamina D.",
+      "Aplicar la regla ABCDE en la evaluación de lesiones pigmentadas.",
+    ],
+    highYield: [
+      "Los melanocitos derivan de la cresta neural y se ubican en el estrato basal.",
+      "Regla de los nueves para estimar la superficie corporal quemada en adultos.",
+      "El estrato lúcido solo existe en la piel gruesa (palmas y plantas).",
+    ],
+    pearl: "Un lunar que cambia de tamaño, forma o color merece dermatoscopía: la evolución (E) es el criterio más sensible.",
+  },
+};

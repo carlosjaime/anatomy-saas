@@ -1,13 +1,8 @@
-import { AnatomyApp } from "./components/AnatomyApp";
-import { chatGPTSignInPath, chatGPTSignOutPath, getChatGPTUser } from "./chatgpt-auth";
+import { Landing } from "./components/Landing";
+import { getCurrentUser } from "./lib/server/session";
+
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await getChatGPTUser();
-  return (
-    <AnatomyApp
-      user={user}
-      signInHref={chatGPTSignInPath("/")}
-      signOutHref={chatGPTSignOutPath("/")}
-    />
-  );
+  return <Landing user={await getCurrentUser()} />;
 }
