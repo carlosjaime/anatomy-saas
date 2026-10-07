@@ -5,7 +5,7 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
  *
  * Las marcas de tiempo se guardan en milisegundos (`integer`) para que las
  * comparaciones de expiración y los agregados por día no dependan del formato
- * de fecha de SQLite. El DDL equivalente vive en `db/bootstrap.ts`; la prueba
+ * de fecha de SQLite. El DDL vive en `db/migrations.ts`; la prueba
  * `tests/auth-store.test.ts` verifica que ambos coincidan.
  */
 
@@ -19,8 +19,12 @@ export const users = sqliteTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: text("role", { enum: USER_ROLES }).notNull(),
   institution: text("institution"),
+  /** Obsoleto: el plan efectivo se deriva de `subscriptions`. Se conserva por compatibilidad. */
   plan: text("plan").notNull().default("free"),
   createdAt: integer("created_at").notNull(),
+  emailVerifiedAt: integer("email_verified_at"),
+  /** 1 cuando el usuario ya consumió su prueba gratis (una por cuenta). */
+  trialUsed: integer("trial_used").notNull().default(0),
 });
 
 export const sessions = sqliteTable(
@@ -65,3 +69,52 @@ export const studyEvents = sqliteTable(
 
 export type UserRow = typeof users.$inferSelect;
 export type StudyEventRow = typeof studyEvents.$inferSelect;
+
+export const SUBSCRIPTION_STATUSES = ["pending", "authorized", "paused", "cancelled"] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+export const BILLING_CYCLES = ["monthly", "annual"] as const;
+
+export const subscriptions = sqliteTable(
+  "subscriptions",
+  {
+    /** Identificador del proveedor (preapproval de Mercado Pago o `demo_…`). */
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider", { enum: ["mercadopago", "demo"] }).notNull(),
+    plan: text("plan").notNull(),
+    cycle: text("cycle", { enum: BILLING_CYCLES }).notNull(),
+    status: text("status", { enum: SUBSCRIPTION_STATUSES }).notNull(),
+    /** Monto por periodo en MXN. */
+    amount: integer("amount").notNull(),
+    trialEndsAt: integer("trial_ends_at"),
+    nextPaymentAt: integer("next_payment_at"),
+    /** Para suscripciones canceladas: acceso hasta el fin del periodo pagado. */
+    accessUntil: integer("access_until"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("subscriptions_user_idx").on(table.userId)],
+);
+
+export const EMAIL_TOKEN_PURPOSES = ["verify", "reset"] as const;
+export type EmailTokenPurpose = (typeof EMAIL_TOKEN_PURPOSES)[number];
+
+export const emailTokens = sqliteTable(
+  "email_tokens",
+  {
+    /** SHA-256 del token enviado por correo. */
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose", { enum: EMAIL_TOKEN_PURPOSES }).notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    usedAt: integer("used_at"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("email_tokens_user_idx").on(table.userId, table.purpose)],
+);
+
+export type SubscriptionRow = typeof subscriptions.$inferSelect;

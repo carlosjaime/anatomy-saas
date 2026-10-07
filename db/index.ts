@@ -2,7 +2,7 @@ import { createClient, type Client } from "@libsql/client";
 import { drizzle as drizzleD1 } from "drizzle-orm/d1";
 import { drizzle as drizzleLibsql } from "drizzle-orm/libsql";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import { BOOTSTRAP_STATEMENTS } from "./bootstrap";
+import { migrate } from "./migrations";
 import { getD1Binding } from "./runtime-env";
 import * as schema from "./schema";
 
@@ -61,15 +61,29 @@ async function ensureLocalDirectory(url: string) {
 
 /** Crea una conexión lista para usar sobre un cliente libSQL existente. */
 export async function connect(client: Client): Promise<Database> {
-  await client.batch([...BOOTSTRAP_STATEMENTS], "write");
   await client.execute("PRAGMA foreign_keys = ON").catch(() => {
     // Algunos servidores remotos no aceptan PRAGMA; las FK se aplican igual allí.
+  });
+  await migrate({
+    run: async (sql) => {
+      await client.execute(sql);
+    },
+    appliedVersions: async () =>
+      (await client.execute("SELECT version FROM schema_migrations")).rows.map((row) => Number(row.version)),
   });
   return drizzleLibsql(client, { schema });
 }
 
 async function connectD1(binding: D1Database): Promise<Database> {
-  await binding.batch(BOOTSTRAP_STATEMENTS.map((statement) => binding.prepare(statement)));
+  await migrate({
+    run: async (sql) => {
+      await binding.prepare(sql).run();
+    },
+    appliedVersions: async () =>
+      ((await binding.prepare("SELECT version FROM schema_migrations").all<{ version: number }>()).results ?? []).map((row) =>
+        Number(row.version),
+      ),
+  });
   return drizzleD1(binding, { schema });
 }
 

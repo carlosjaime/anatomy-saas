@@ -90,7 +90,7 @@ export const PLANS: readonly Plan[] = [
     perks: [
       "Todo lo del plan Profesional",
       "Hasta 25 licencias incluidas",
-      "Facturación con CFDI 4.0",
+      "Facturación institucional",
       "Acompañamiento para docentes",
     ],
   },

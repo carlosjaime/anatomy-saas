@@ -1,5 +1,8 @@
 import { DatabaseUnavailableError, getDb, type Database } from "../../../db";
 import { getUserBySessionToken, type SessionUser } from "./auth-store";
+import { BillingError } from "./billing/service";
+import { BillingProviderError } from "./billing/provider";
+import { EmailUnavailableError } from "./mailer";
 
 /**
  * Utilidades para rutas API: sesión por cookie, defensa CSRF y respuestas
@@ -110,6 +113,17 @@ export function handle(handler: (request: Request) => Promise<Response>) {
     } catch (error) {
       if (error instanceof HttpError) {
         return json({ error: error.message, fields: error.fields }, { status: error.status });
+      }
+      if (error instanceof BillingError) {
+        const status = error.code === "not_configured" ? 503 : error.code === "email_unverified" ? 403 : error.code === "already_subscribed" ? 409 : 422;
+        return json({ error: error.message, code: error.code }, { status });
+      }
+      if (error instanceof BillingProviderError) {
+        console.error("[billing]", error.message);
+        return json({ error: "El procesador de pagos no respondió. Intenta de nuevo en unos minutos." }, { status: 502 });
+      }
+      if (error instanceof EmailUnavailableError) {
+        return json({ error: "El envío de correos no está disponible en este momento." }, { status: 503 });
       }
       if (error instanceof DatabaseUnavailableError) {
         console.error("[db]", error.message, error.cause ?? "");

@@ -1,8 +1,9 @@
 import { and, eq, gt, lt } from "drizzle-orm";
 import type { Database } from "../../../db";
-import { authAttempts, sessions, users, type UserRow } from "../../../db/schema";
-import { parsePlan, type PlanId } from "../plans";
+import { authAttempts, sessions, subscriptions, users, type UserRow } from "../../../db/schema";
+import type { PlanId } from "../plans";
 import type { LoginInput, RegistrationInput, RoleId } from "../validation";
+import { effectivePlan } from "./billing/entitlement";
 import { hashPassword, randomToken, sha256Hex, verifyPassword } from "./crypto";
 
 /**
@@ -20,7 +21,11 @@ export type SessionUser = {
   email: string;
   role: RoleId;
   institution: string | null;
+  /** Plan vigente, derivado de las suscripciones confirmadas por el proveedor. */
   plan: PlanId;
+  emailVerified: boolean;
+  /** La prueba gratis es una por cuenta. */
+  trialAvailable: boolean;
   createdAt: number;
 };
 
@@ -31,16 +36,35 @@ export type AuthFailure =
 
 export type AuthSuccess = { ok: true; user: SessionUser; token: string; expiresAt: number };
 
-export function toSessionUser(row: UserRow): SessionUser {
+export function toSessionUser(row: UserRow, plan: PlanId = "free"): SessionUser {
   return {
     id: row.id,
     name: row.name,
     email: row.email,
     role: row.role,
     institution: row.institution,
-    plan: parsePlan(row.plan),
+    plan,
+    emailVerified: row.emailVerifiedAt !== null,
+    trialAvailable: row.trialUsed === 0,
     createdAt: row.createdAt,
   };
+}
+
+/** Construye el usuario de sesión calculando su plan vigente. */
+export async function loadSessionUser(db: Database, row: UserRow, now = Date.now()): Promise<SessionUser> {
+  const owned = await db
+    .select({ plan: subscriptions.plan, status: subscriptions.status, accessUntil: subscriptions.accessUntil })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, row.id));
+  return toSessionUser(row, effectivePlan(owned, now));
+}
+
+export async function getUserById(db: Database, userId: string): Promise<UserRow | undefined> {
+  return db.select().from(users).where(eq(users.id, userId)).get();
+}
+
+export async function getUserByEmail(db: Database, email: string): Promise<UserRow | undefined> {
+  return db.select().from(users).where(eq(users.email, email)).get();
 }
 
 /**
@@ -53,7 +77,7 @@ function getDummyHash() {
   return dummyHash;
 }
 
-async function issueSession(db: Database, userId: string, now: number) {
+export async function issueSession(db: Database, userId: string, now = Date.now()) {
   const token = randomToken(32);
   const expiresAt = now + SESSION_TTL_MS;
   await db.insert(sessions).values({ id: await sha256Hex(token), userId, expiresAt, createdAt: now });
@@ -75,6 +99,8 @@ export async function registerUser(db: Database, input: RegistrationInput, now =
     institution: input.institution,
     plan: "free",
     createdAt: now,
+    emailVerifiedAt: null,
+    trialUsed: 0,
   };
   try {
     await db.insert(users).values(row);
@@ -87,17 +113,27 @@ export async function registerUser(db: Database, input: RegistrationInput, now =
   return { ok: true, user: toSessionUser(row), ...session };
 }
 
-/** Cuenta un intento en una ventana fija; devuelve cuánto esperar si se excede. */
-async function consumeAttempt(db: Database, key: string, now: number): Promise<number> {
+/**
+ * Cuenta un intento en una ventana fija; devuelve cuántos ms esperar si se
+ * excede el límite (0 = permitido). Reutilizable para login, recuperación de
+ * contraseña y reenvío de verificación.
+ */
+export async function consumeAttempt(
+  db: Database,
+  key: string,
+  now = Date.now(),
+  limit = LOGIN_MAX_ATTEMPTS,
+  windowMs = LOGIN_WINDOW_MS,
+): Promise<number> {
   const current = await db.select().from(authAttempts).where(eq(authAttempts.key, key)).get();
-  if (!current || now - current.windowStart >= LOGIN_WINDOW_MS) {
+  if (!current || now - current.windowStart >= windowMs) {
     await db
       .insert(authAttempts)
       .values({ key, count: 1, windowStart: now })
       .onConflictDoUpdate({ target: authAttempts.key, set: { count: 1, windowStart: now } });
     return 0;
   }
-  if (current.count >= LOGIN_MAX_ATTEMPTS) return current.windowStart + LOGIN_WINDOW_MS - now;
+  if (current.count >= limit) return current.windowStart + windowMs - now;
   await db.update(authAttempts).set({ count: current.count + 1 }).where(eq(authAttempts.key, key));
   return 0;
 }
@@ -113,7 +149,7 @@ export async function loginUser(db: Database, input: LoginInput, now = Date.now(
 
   await db.delete(authAttempts).where(eq(authAttempts.key, attemptKey));
   const session = await issueSession(db, row.id, now);
-  return { ok: true, user: toSessionUser(row), ...session };
+  return { ok: true, user: await loadSessionUser(db, row, now), ...session };
 }
 
 export async function getUserBySessionToken(db: Database, token: string, now = Date.now()): Promise<SessionUser | null> {
@@ -124,7 +160,7 @@ export async function getUserBySessionToken(db: Database, token: string, now = D
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.id, await sha256Hex(token)), gt(sessions.expiresAt, now)))
     .get();
-  return row ? toSessionUser(row.user) : null;
+  return row ? loadSessionUser(db, row.user, now) : null;
 }
 
 export async function revokeSession(db: Database, token: string): Promise<void> {
@@ -132,6 +168,15 @@ export async function revokeSession(db: Database, token: string): Promise<void> 
   await db.delete(sessions).where(eq(sessions.id, await sha256Hex(token)));
 }
 
-export async function updateUserPlan(db: Database, userId: string, plan: PlanId): Promise<void> {
-  await db.update(users).set({ plan }).where(eq(users.id, userId));
+/** Cierra todas las sesiones del usuario (p. ej. tras restablecer la contraseña). */
+export async function revokeAllSessions(db: Database, userId: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
+export async function setPassword(db: Database, userId: string, password: string): Promise<void> {
+  await db.update(users).set({ passwordHash: await hashPassword(password) }).where(eq(users.id, userId));
+}
+
+export async function markEmailVerified(db: Database, userId: string, now = Date.now()): Promise<void> {
+  await db.update(users).set({ emailVerifiedAt: now }).where(eq(users.id, userId));
 }

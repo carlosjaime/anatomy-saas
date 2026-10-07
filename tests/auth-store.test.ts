@@ -3,7 +3,7 @@ import test from "node:test";
 import { createClient } from "@libsql/client";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { connect, type Database } from "../db/index.ts";
-import { USER_ROLES, authAttempts, sessions, studyEvents, users } from "../db/schema.ts";
+import { USER_ROLES, authAttempts, emailTokens, sessions, studyEvents, subscriptions, users } from "../db/schema.ts";
 import {
   LOGIN_MAX_ATTEMPTS,
   LOGIN_WINDOW_MS,
@@ -12,7 +12,6 @@ import {
   loginUser,
   registerUser,
   revokeSession,
-  updateUserPlan,
 } from "../app/lib/server/auth-store.ts";
 import { hashPassword, verifyPassword } from "../app/lib/server/crypto.ts";
 import { aggregateStats, computeStreak, getDashboardStats, recordStudyEvent, VIEW_DEDUPE_MS } from "../app/lib/server/progress-store.ts";
@@ -24,10 +23,10 @@ async function freshDb(): Promise<Database> {
 
 const ana = { name: "Ana Pérez", email: "ana@hospital.mx", password: "Anatomia2026", role: "residente" as const, institution: "UNAM" };
 
-test("bootstrap DDL matches every column declared in the Drizzle schema", async () => {
+test("migrated DDL matches every column declared in the Drizzle schema", async () => {
   const client = createClient({ url: ":memory:" });
   await connect(client);
-  for (const table of [users, sessions, authAttempts, studyEvents]) {
+  for (const table of [users, sessions, authAttempts, studyEvents, subscriptions, emailTokens]) {
     const config = getTableConfig(table);
     const info = await client.execute(`PRAGMA table_info(${config.name})`);
     const actual = new Set(info.rows.map((row) => String(row.name)));
@@ -93,14 +92,6 @@ test("login is rate limited per email within the window", async () => {
 
   const later = await loginUser(db, { email: ana.email, password: ana.password }, now + LOGIN_WINDOW_MS + 1);
   assert.ok(later.ok, "window expiry lifts the block");
-});
-
-test("plan updates persist on the user", async () => {
-  const db = await freshDb();
-  const registered = await registerUser(db, ana);
-  assert.ok(registered.ok);
-  await updateUserPlan(db, registered.user.id, "pro");
-  assert.equal((await getUserBySessionToken(db, registered.token))?.plan, "pro");
 });
 
 test("study events dedupe views and aggregate mastery", async () => {
