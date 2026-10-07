@@ -5,6 +5,11 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    // Anatomy art ships as pre-sized, pre-compressed webp with explicit
+    // dimensions; the vinext/Workers runtime has no next/image optimizer.
+    rules: { "@next/next/no-img-element": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
@@ -12,6 +17,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored, minified decoder builds served as static assets.
+    "public/draco/**",
+    "public/basis/**",
+    "dist/**",
   ]),
 ]);
 
