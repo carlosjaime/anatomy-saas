@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { ActivityChart } from "./ActivityChart";
+import { GameBestCard } from "../game/GameBestCard";
 import { ResendVerificationButton } from "../AccountForms";
 import { CountUp } from "../ui/CountUp";
 import { DashShell, roleLabel } from "./DashShell";
@@ -67,7 +68,7 @@ export function Dashboard({ user, stats, now, passwordUpdated = false, locale, m
   const d = m.dashboard;
   const organById = Object.fromEntries(content.organs.map((organ) => [organ.id, organ])) as Record<OrganId, AtlasContent["organs"][number]>;
   const relativeTime = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  const kindLabel = { view: d.kindView, tour: d.kindTour, quiz: d.kindQuiz } as const;
+  const kindLabel = { view: d.kindView, tour: d.kindTour, quiz: d.kindQuiz, placement: d.kindPlacement } as const;
   const studentPrice = PLANS.find((item) => item.id === "student")?.monthlyPrice ?? 0;
   const firstName = user.name.split(" ")[0];
   const next = recommend(stats.organs, user);
@@ -140,6 +141,8 @@ export function Dashboard({ user, stats, now, passwordUpdated = false, locale, m
             <ActivityChart days={stats.activity} />
           </section>
 
+          <GameBestCard />
+
           <section className="dash-card mastery-card" aria-labelledby="mastery-title">
             <header>
               <h2 id="mastery-title"><TrendingUp size={17} /> {d.masteryTitle}</h2>
@@ -179,7 +182,7 @@ export function Dashboard({ user, stats, now, passwordUpdated = false, locale, m
                     <span className={`recent-dot ${event.kind}`} aria-hidden="true" />
                     <p>
                       {kindLabel[event.kind]} <b>{organById[event.organId].name.toLowerCase()}</b>
-                      {event.kind === "quiz" && <em className={event.correct ? "ok" : "ko"}>{event.correct ? d.correct : d.incorrect}</em>}
+                      {(event.kind === "quiz" || event.kind === "placement") && <em className={event.correct ? "ok" : "ko"}>{event.correct ? d.correct : d.incorrect}</em>}
                     </p>
                     <time dateTime={new Date(event.createdAt).toISOString()}>{timeAgo(relativeTime, event.createdAt, now)}</time>
                   </li>

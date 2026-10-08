@@ -48,7 +48,8 @@ export const authAttempts = sqliteTable("auth_attempts", {
   windowStart: integer("window_start").notNull(),
 });
 
-export const STUDY_EVENT_KINDS = ["view", "quiz", "tour"] as const;
+/** `placement`: resultado de un órgano en el reto "Arma el cuerpo humano". */
+export const STUDY_EVENT_KINDS = ["view", "quiz", "tour", "placement"] as const;
 export type StudyEventKind = (typeof STUDY_EVENT_KINDS)[number];
 
 export const studyEvents = sqliteTable(
@@ -60,7 +61,7 @@ export const studyEvents = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     organId: text("organ_id").notNull(),
     kind: text("kind", { enum: STUDY_EVENT_KINDS }).notNull(),
-    /** Solo para cuestionarios: 1 correcta, 0 incorrecta. */
+    /** Solo para cuestionarios y ubicaciones: 1 correcta, 0 incorrecta. */
     correct: integer("correct"),
     createdAt: integer("created_at").notNull(),
   },

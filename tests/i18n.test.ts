@@ -35,7 +35,7 @@ test("English dictionary is actually translated", () => {
   const es = flatten(getMessages("es-MX"));
   const en = flatten(getMessages("en-US"));
   // Nombres propios y plantillas sin texto propio son iguales en ambos idiomas.
-  const sameByDesign = new Set(["brand.name", "dashboard.greeting"]);
+  const sameByDesign = new Set(["brand.name", "dashboard.greeting", "game.combo", "game.points", "game.feedbackPlaced"]);
   const identical = [...es].filter(([key, text]) => text.length > 12 && en.get(key) === text && !sameByDesign.has(key)).map(([key]) => key);
   assert.deepEqual(identical, []);
 });

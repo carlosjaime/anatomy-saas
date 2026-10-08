@@ -31,7 +31,7 @@ export async function recordStudyEvent(db: Database, userId: string, event: Stud
     userId,
     organId: event.organId,
     kind: event.kind,
-    correct: event.kind === "quiz" ? (event.correct ? 1 : 0) : null,
+    correct: event.kind === "quiz" || event.kind === "placement" ? (event.correct ? 1 : 0) : null,
     createdAt: now,
   });
   return true;

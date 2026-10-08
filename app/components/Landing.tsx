@@ -10,6 +10,7 @@ import {
   GraduationCap,
   HeartPulse,
   Layers,
+  Puzzle,
   LayoutDashboard,
   Microscope,
   Route,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { BrandLockup } from "./BrandMark";
 import { RevealOnScroll } from "./Reveal";
+import { BodyFigure } from "./game/BodyFigure";
 import { SiteFooter } from "./SiteFooter";
 import { CountUp } from "./ui/CountUp";
 import { LanguageSwitcher } from "./ui/LanguageSwitcher";
@@ -27,11 +29,15 @@ import { format } from "../i18n/format";
 import type { Messages } from "../i18n/messages/es-MX";
 import type { AtlasContent } from "../content/types";
 import { PLANS, formatMXN, monthlyEquivalent } from "../lib/plans";
+import { ORGAN_TARGETS } from "../lib/game/body-map";
+import { GAME_MODES } from "../lib/game/scoring";
+import type { OrganId } from "../lib/anatomy-data";
 import type { SessionUser } from "../lib/server/auth-store";
 
 const FEATURE_ICONS = [Box, Route, Activity, BookOpenCheck, ClipboardCheck, LayoutDashboard];
 const AUDIENCE_ICONS = [GraduationCap, ClipboardCheck, Stethoscope, School];
 const HERO_TAG_COLORS = ["#e2614f", "#f2a33b", "#4f7fd1"];
+const TEASER_ORGANS: readonly OrganId[] = ["lungs", "heart", "brain", "intestine"];
 
 export function Landing({ user, m, content }: { user: SessionUser | null; m: Messages; content: AtlasContent }) {
   const l = m.landing;
@@ -136,6 +142,47 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
               );
             })}
           </div>
+        </section>
+
+        <section className="game-teaser" aria-labelledby="game-teaser-title" data-animate>
+          <div className="game-teaser-copy">
+            <span className="eyebrow"><Puzzle size={14} /> {m.game.teaserEyebrow}</span>
+            <h2 id="game-teaser-title">{m.game.teaserTitle}</h2>
+            <p>{m.game.teaserText}</p>
+            <ul className="game-teaser-modes">
+              {GAME_MODES.map((mode) => (
+                <li key={mode}><Check size={14} /> {m.game.modes[mode].name}</li>
+              ))}
+            </ul>
+            <Link className="btn btn-primary btn-lg btn-shine" href="/juego">{m.game.teaserCta} <ArrowRight size={18} /></Link>
+          </div>
+          <Link href="/juego" className="game-teaser-visual" aria-label={m.game.teaserCta}>
+            <BodyFigure
+              showGuides
+              title={m.game.stage}
+              idPrefix="teaser-body"
+              sideLabels={{ right: m.game.rightShort, left: m.game.leftShort, rightTitle: m.game.patientRight, leftTitle: m.game.patientLeft }}
+            />
+            {TEASER_ORGANS.map((id, index) => {
+              const target = ORGAN_TARGETS[id];
+              const anchor = target.anchors[0];
+              return (
+                <img
+                  key={id}
+                  className="teaser-organ"
+                  src={`/anatomy/${id}/thumb.webp`}
+                  alt=""
+                  width={180}
+                  height={180}
+                  loading="lazy"
+                  style={{ left: `${(anchor.x / 400) * 100}%`, top: `${(anchor.y / 720) * 100}%`, width: `${(target.size / 400) * 100}%`, zIndex: target.layer, "--i": index } as React.CSSProperties}
+                />
+              );
+            })}
+            <span className="teaser-drag" aria-hidden="true">
+              <img src="/anatomy/liver/thumb.webp" alt="" width={180} height={180} loading="lazy" />
+            </span>
+          </Link>
         </section>
 
         <section className="landing-section organ-showcase" aria-labelledby="showcase-title">

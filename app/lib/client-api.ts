@@ -44,7 +44,8 @@ export async function postJson<T>(url: string, body: unknown, init: RequestInit 
 export type StudyEvent =
   | { organId: OrganId; kind: "view" }
   | { organId: OrganId; kind: "tour" }
-  | { organId: OrganId; kind: "quiz"; correct: boolean };
+  | { organId: OrganId; kind: "quiz"; correct: boolean }
+  | { organId: OrganId; kind: "placement"; correct: boolean };
 
 /**
  * Registro de progreso en segundo plano. `keepalive` permite que el evento

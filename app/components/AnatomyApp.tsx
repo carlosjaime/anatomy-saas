@@ -23,6 +23,7 @@ import {
   LogOut,
   Microscope,
   Play,
+  Puzzle,
   Route,
   Search,
   Share2,
@@ -323,6 +324,9 @@ function AtlasWorkspace({ user, initialOrganId = "heart", initialOverlay = null 
           <button type="button" className={overlay === "encyclopedia" ? "active" : ""} onClick={() => openEncyclopedia()}>
             <Library size={17} /> <span>{m.nav.encyclopedia}</span>
           </button>
+          <Link href="/juego" className="game-nav-link" data-testid="nav-game">
+            <Puzzle size={17} /> <span>{m.game.nav}</span>
+          </Link>
           <button type="button" className="plan-nav-button" onClick={() => setOverlay("plans")}>
             <CreditCard size={17} /> <span>{m.nav.plans}</span>
           </button>
@@ -637,6 +641,9 @@ function AtlasWorkspace({ user, initialOrganId = "heart", initialOverlay = null 
         <button type="button" className={overlay === "encyclopedia" ? "active" : ""} onClick={() => openEncyclopedia()}>
           <Library size={20} /><span>{m.nav.encyclopedia}</span>
         </button>
+        <Link href="/juego" className="tabbar-link">
+          <Puzzle size={20} /><span>{m.game.nav}</span>
+        </Link>
         <button type="button" className={overlay === "plans" ? "active" : ""} onClick={() => { setMobileLibrary(false); setOverlay("plans"); }}>
           <CreditCard size={20} /><span>{m.nav.plans}</span>
         </button>

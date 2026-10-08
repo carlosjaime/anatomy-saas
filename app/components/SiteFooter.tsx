@@ -60,6 +60,7 @@ export function SiteFooter({ m, variant = "full", signedIn = false, className = 
           <ul>
             <li><Link href="/atlas">{f.atlas}</Link></li>
             <li><Link href="/atlas?panel=encyclopedia">{f.encyclopedia}</Link></li>
+            <li><Link href="/juego">{f.game}</Link></li>
             <li><Link href="/atlas?panel=plans">{f.plans}</Link></li>
             {signedIn && <li><Link href="/dashboard">{f.dashboard}</Link></li>}
           </ul>
