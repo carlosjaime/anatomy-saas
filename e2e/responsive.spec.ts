@@ -21,7 +21,7 @@ test.describe("responsive móvil", () => {
   for (const width of [390, 320]) {
     test(`sin desbordes horizontales a ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
-      for (const path of ["/", "/acerca", "/atlas", "/login", "/registro", "/recuperar", "/no-existe"]) {
+      for (const path of ["/", "/acerca", "/juego", "/atlas", "/login", "/registro", "/recuperar", "/no-existe"]) {
         await page.goto(path);
         await page.waitForLoadState("networkidle");
         await expectNoHorizontalOverflow(page, path);
@@ -44,4 +44,17 @@ test.describe("responsive móvil", () => {
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
     await expectNoHorizontalOverflow(page, "/atlas en inglés");
   });
+});
+
+test("el reto anatómico funciona con toque en móvil", async ({ page }) => {
+  await page.goto("/juego");
+  await page.getByTestId("game-start").click();
+  // Tocar un órgano lo selecciona; tocar el cuerpo lo coloca en ese punto.
+  await page.getByTestId("tray-brain").tap();
+  // Como haría el usuario: con la figura a la vista (seleccionar puede desplazar la página).
+  await page.getByTestId("game-stage").evaluate((node) => node.scrollIntoView({ block: "start", behavior: "instant" }));
+  const stage = (await page.getByTestId("game-stage").boundingBox())!;
+  await page.touchscreen.tap(stage.x + stage.width / 2, stage.y + (62 / 720) * stage.height);
+  await expect(page.getByTestId("placed-brain")).toHaveAttribute("data-result", "correct");
+  await expectNoHorizontalOverflow(page, "/juego en partida");
 });
