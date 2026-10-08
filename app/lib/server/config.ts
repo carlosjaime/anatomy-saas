@@ -16,6 +16,21 @@ export function isProduction(): boolean {
  * URL pública de la app para enlaces en correos y `back_url` de pagos.
  * `APP_URL` tiene prioridad; si falta, se usa el origen de la petición.
  */
+/**
+ * Modo de pruebas de extremo a extremo (`ATLAS_E2E=1`): habilita el proveedor
+ * de pagos de demostración y un buzón de correo en memoria aunque el servidor
+ * corra con un build de producción. Nunca se activa en un despliegue real de
+ * Vercel (`VERCEL_ENV=production`) ni si hay credenciales reales configuradas.
+ */
+export function isE2E(): boolean {
+  return (
+    readEnv("ATLAS_E2E") === "1" &&
+    readEnv("VERCEL_ENV") !== "production" &&
+    !readEnv("MERCADOPAGO_ACCESS_TOKEN") &&
+    !readEnv("RESEND_API_KEY")
+  );
+}
+
 export function appUrl(request?: Request): string {
   const configured = readEnv("APP_URL");
   if (configured) {
@@ -41,13 +56,18 @@ export type BillingConfig =
 export function billingConfig(): BillingConfig {
   const accessToken = readEnv("MERCADOPAGO_ACCESS_TOKEN");
   if (accessToken) return { provider: "mercadopago", accessToken, webhookSecret: readEnv("MERCADOPAGO_WEBHOOK_SECRET") ?? null };
-  return isProduction() ? { provider: "none" } : { provider: "demo" };
+  return isProduction() && !isE2E() ? { provider: "none" } : { provider: "demo" };
 }
 
-export type MailConfig = { provider: "resend"; apiKey: string; from: string } | { provider: "console" } | { provider: "none" };
+export type MailConfig =
+  | { provider: "resend"; apiKey: string; from: string }
+  | { provider: "console" }
+  | { provider: "memory" }
+  | { provider: "none" };
 
 export function mailConfig(): MailConfig {
   const apiKey = readEnv("RESEND_API_KEY");
   if (apiKey) return { provider: "resend", apiKey, from: readEnv("EMAIL_FROM") ?? "Atlas Anatómico <no-reply@atlas-anatomico.mx>" };
+  if (isE2E()) return { provider: "memory" };
   return isProduction() ? { provider: "none" } : { provider: "console" };
 }

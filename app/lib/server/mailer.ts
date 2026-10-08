@@ -31,10 +31,28 @@ const consoleMailer: Mailer = async (message) => {
   console.info(`\n[correo de desarrollo] Para: ${message.to}\nAsunto: ${message.subject}\n${message.text}\n`);
 };
 
+// Buzón de pruebas E2E. En `globalThis` para compartirse entre los bundles de
+// rutas que Next.js carga por separado dentro del mismo proceso.
+const MAILBOX_KEY = Symbol.for("atlas-anatomico.e2e-mailbox");
+const MAILBOX_LIMIT = 200;
+const mailbox: EmailMessage[] = ((globalThis as Record<symbol, unknown>)[MAILBOX_KEY] ??= []) as EmailMessage[];
+
+const memoryMailer: Mailer = async (message) => {
+  mailbox.push(message);
+  if (mailbox.length > MAILBOX_LIMIT) mailbox.splice(0, mailbox.length - MAILBOX_LIMIT);
+};
+
+/** Correos recibidos por una dirección (solo con el buzón de pruebas activo). */
+export function readMailbox(to: string): EmailMessage[] {
+  const address = to.trim().toLowerCase();
+  return mailbox.filter((message) => message.to.toLowerCase() === address);
+}
+
 export function getMailer(): Mailer {
   const config = mailConfig();
   if (config.provider === "resend") return resendMailer(config);
   if (config.provider === "console") return consoleMailer;
+  if (config.provider === "memory") return memoryMailer;
   return async () => {
     throw new EmailUnavailableError();
   };

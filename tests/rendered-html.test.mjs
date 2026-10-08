@@ -56,3 +56,8 @@ test("server-renders English from the locale cookie or Accept-Language", async (
   assert.match(negotiated, /<html lang="en-US"/);
   assert.match(negotiated, /Welcome back/);
 });
+
+test("the E2E mailbox does not exist outside E2E mode", async () => {
+  const response = await render("/api/test/mailbox?to=a@b.test");
+  assert.equal(response.status, 404);
+});
