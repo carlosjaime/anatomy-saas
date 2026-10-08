@@ -13,6 +13,7 @@ import {
   Lightbulb,
   Pause,
   Play,
+  Repeat2,
   RotateCcw,
   Settings2,
   Star,
@@ -23,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { BodyFigure, type RegionTone } from "./BodyFigure";
+import { OrganArt } from "./OrganArt";
 import { useGameAudio, type GameSound } from "./useGameAudio";
 import { BrandMark } from "../BrandMark";
 import { Dialog } from "../Dialog";
@@ -34,13 +36,17 @@ import { trackStudy } from "../../lib/client-api";
 import {
   BODY_VIEWBOX,
   ORGAN_TARGETS,
-  REGION_IDS,
+  REGION_IDS_BY_VIEW,
   evaluatePlacement,
   regionAt,
   regionCenter,
+  type ExtraOrganId,
+  type GameOrganId,
+  type OrganTarget,
   type PlacementResult,
   type Point,
   type RegionId,
+  type View,
 } from "../../lib/game/body-map";
 import {
   DIFFICULTIES,
@@ -48,22 +54,40 @@ import {
   HINT_COST,
   TIMED_DURATION_MS,
   TIMED_MISS_PENALTY_MS,
+  VIEW_MODES,
   accuracy as computeAccuracy,
+  bestKey,
   isDifficulty,
   isGameMode,
+  isViewMode,
   placementPoints,
   starsFor,
   timeBonus,
   type Difficulty,
   type GameMode,
+  type ViewMode,
 } from "../../lib/game/scoring";
 
-export type GameOrgan = { id: OrganId; name: string; system: string; location: string; accent: string };
+export type GameOrgan = {
+  id: GameOrganId;
+  name: string;
+  system: string;
+  location: string;
+  accent: string;
+  /** Vistas en las que se puede colocar. */
+  views: View[];
+  /** Órgano del atlas: su resultado se registra en el panel de estudio. */
+  tracked: boolean;
+  /** `image`: ilustración del atlas; `vector`: arte vectorial propio del reto. */
+  art: "image" | "vector";
+};
 
 type Status = "tray" | "placed" | "correct" | "partial" | "wrong";
 
 type OrganState = {
   status: Status;
+  /** Vista en la que se colocó. */
+  view?: View;
   /** Punto donde se soltó (examen y revisión de errores). */
   point?: Point;
   region?: RegionId | null;
@@ -77,13 +101,13 @@ type OrganState = {
 };
 
 type Phase = "setup" | "playing" | "finished";
-type Feedback = { tone: "info" | "correct" | "partial" | "wrong"; text: string; organId?: OrganId; points?: number; penalty?: boolean };
+type Feedback = { tone: "info" | "correct" | "partial" | "wrong"; text: string; organId?: GameOrganId; points?: number; penalty?: boolean };
 type Summary = { score: number; accuracy: number; stars: 0 | 1 | 2 | 3; timeMs: number; bonus: number; newBest: boolean; timeUp: boolean };
 
 const { width: VB_W, height: VB_H } = BODY_VIEWBOX;
 const DRAG_THRESHOLD = 6;
+const FLIP_MS = 460;
 const PREFS_KEY = "atlas:game:prefs";
-const bestKey = (mode: GameMode, difficulty: Difficulty) => `atlas:game:best:${mode}:${difficulty}`;
 const MODE_ICONS = { learn: GraduationCap, exam: CircleHelp, timed: Timer } as const;
 
 function readStorage(key: string): string | null {
@@ -118,21 +142,31 @@ function shuffle<T>(items: readonly T[]): T[] {
 
 const freshStates = (organs: readonly GameOrgan[]) =>
   Object.fromEntries(organs.map((organ) => [organ.id, { status: "tray", misses: 0, points: 0 } satisfies OrganState])) as Record<
-    OrganId,
+    GameOrganId,
     OrganState
   >;
+
+const targetIn = (view: View, organId: GameOrganId): OrganTarget | undefined => ORGAN_TARGETS[view][organId];
 
 /** Posición en % del escenario para un punto del viewBox. */
 const toPercent = (point: Point): CSSProperties => ({ left: `${(point.x / VB_W) * 100}%`, top: `${(point.y / VB_H) * 100}%` });
 
-function OrganImage({ organId, size, className = "", alt = "" }: { organId: OrganId; size: number; className?: string; alt?: string }) {
+/** Ilustración de un órgano: acuarela del atlas o arte vectorial del reto. */
+function OrganVisual({ organ, size, alt = "", suffix = "" }: { organ: GameOrgan; size: number; alt?: string; suffix?: string }) {
+  if (organ.art === "vector") {
+    return (
+      <span className="game-organ-art" role={alt ? "img" : undefined} aria-label={alt || undefined}>
+        <OrganArt id={organ.id as ExtraOrganId} suffix={suffix} />
+      </span>
+    );
+  }
   // Miniatura ligera para tamaños pequeños; la ilustración grande solo si se dibuja amplia.
   const large = size > 80;
   return (
     <img
-      className={`game-organ-img ${className}`}
-      src={`/anatomy/${organId}/thumb.webp`}
-      srcSet={large ? `/anatomy/${organId}/thumb.webp 180w, /anatomy/${organId}/organ.webp 720w` : undefined}
+      className="game-organ-img"
+      src={`/anatomy/${organ.id}/thumb.webp`}
+      srcSet={large ? `/anatomy/${organ.id}/thumb.webp 180w, /anatomy/${organ.id}/organ.webp 720w` : undefined}
       sizes={large ? `${Math.round(size * 1.1)}px` : undefined}
       alt={alt}
       width={180}
@@ -171,41 +205,51 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
   const { m, t } = useI18n();
   const g = m.game;
   const { muted, toggleMuted, play } = useGameAudio();
-  const organById = useMemo(() => Object.fromEntries(organs.map((organ) => [organ.id, organ])) as Record<OrganId, GameOrgan>, [organs]);
+  const organById = useMemo(() => Object.fromEntries(organs.map((organ) => [organ.id, organ])) as Record<GameOrganId, GameOrgan>, [organs]);
 
   const [phase, setPhase] = useState<Phase>("setup");
   const [mode, setMode] = useState<GameMode>("learn");
   const [difficulty, setDifficulty] = useState<Difficulty>("guided");
+  const [viewMode, setViewMode] = useState<ViewMode>("anterior");
+  const [view, setView] = useState<View>("anterior");
+  const [flipping, setFlipping] = useState(false);
   const [states, setStates] = useState(() => freshStates(organs));
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [selected, setSelected] = useState<OrganId | null>(null);
+  const [selected, setSelected] = useState<GameOrganId | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [hint, setHint] = useState<OrganId | null>(null);
+  const [hint, setHint] = useState<GameOrganId | null>(null);
   const [flash, setFlash] = useState<{ region: RegionId | null; point: Point; key: number } | null>(null);
-  const [queue, setQueue] = useState<OrganId[]>([]);
+  const [queue, setQueue] = useState<GameOrganId[]>([]);
   const [paused, setPaused] = useState(false);
   const [guides, setGuides] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [resultsOpen, setResultsOpen] = useState(false);
   const [bests, setBests] = useState<Record<string, number>>({});
-  const [dragging, setDragging] = useState<OrganId | null>(null);
+  const [dragging, setDragging] = useState<GameOrganId | null>(null);
   const [hoverRegion, setHoverRegion] = useState<RegionId | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ organId: OrganId; pointerId: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const drag = useRef<{ organId: GameOrganId; pointerId: number; startX: number; startY: number; moved: boolean } | null>(null);
   const clock = useRef({ accumulated: 0, since: null as number | null });
   const timers = useRef(new Set<number>());
   const flashSeq = useRef(0);
 
+  /** Órganos de la partida según la vista elegida. */
+  const active = useMemo(
+    () => (viewMode === "both" ? organs : organs.filter((organ) => organ.views.includes(viewMode))),
+    [organs, viewMode],
+  );
+  const countFor = (option: ViewMode) => (option === "both" ? organs.length : organs.filter((organ) => organ.views.includes(option)).length);
+
   const guided = difficulty === "guided";
   const showGuides = guided && guides;
-  const total = organs.length;
+  const total = active.length;
   const settled = (status: Status) => status === "correct" || status === "partial";
-  const placedCount = organs.filter((organ) => states[organ.id].status !== "tray").length;
-  const doneCount = organs.filter((organ) => settled(states[organ.id].status)).length;
+  const placedCount = active.filter((organ) => states[organ.id].status !== "tray").length;
+  const doneCount = active.filter((organ) => settled(states[organ.id].status)).length;
   const target = mode === "timed" ? queue.find((id) => !settled(states[id].status)) ?? null : null;
 
   const later = useCallback((fn: () => void, ms: number) => {
@@ -220,18 +264,22 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
   useEffect(() => {
     const pending = timers.current;
     try {
-      const prefs = JSON.parse(readStorage(PREFS_KEY) ?? "{}") as { mode?: unknown; difficulty?: unknown };
+      const prefs = JSON.parse(readStorage(PREFS_KEY) ?? "{}") as { mode?: unknown; difficulty?: unknown; viewMode?: unknown };
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con localStorage tras hidratar
       if (isGameMode(prefs.mode)) setMode(prefs.mode);
       if (isDifficulty(prefs.difficulty)) setDifficulty(prefs.difficulty);
+      if (isViewMode(prefs.viewMode)) setViewMode(prefs.viewMode);
     } catch {
       // Preferencias corruptas: se usan los valores por defecto.
     }
     const loaded: Record<string, number> = {};
     for (const gameMode of GAME_MODES) {
       for (const level of DIFFICULTIES) {
-        const value = Number(readStorage(bestKey(gameMode, level)));
-        if (Number.isFinite(value) && value > 0) loaded[bestKey(gameMode, level)] = value;
+        for (const option of VIEW_MODES) {
+          const key = bestKey(gameMode, level, option);
+          const value = Number(readStorage(key));
+          if (Number.isFinite(value) && value > 0) loaded[key] = value;
+        }
       }
     }
     setBests(loaded);
@@ -254,9 +302,34 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
 
   const sound = useCallback((name: GameSound) => play(name), [play]);
 
+  // ── Giro del cuerpo (vista anterior ↔ posterior) ──────────────────────────
+  const flipTo = useCallback(
+    (next: View) => {
+      if (next === view || flipping) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setView(next);
+        return;
+      }
+      setFlipping(true);
+      setHoverRegion(null);
+      // El cambio de cara ocurre a mitad del giro, cuando la figura está de canto.
+      later(() => setView(next), FLIP_MS / 2);
+      later(() => setFlipping(false), FLIP_MS);
+      sound("pick");
+    },
+    [flipping, later, sound, view],
+  );
+
+  // Contrarreloj en vista completa: la figura gira sola hacia la cara del órgano pedido.
+  useEffect(() => {
+    if (phase !== "playing" || !target || targetIn(view, target)) return;
+    const next = organById[target].views[0];
+    later(() => flipTo(next), 0);
+  }, [phase, target, view, organById, flipTo, later]);
+
   // ── Ciclo de vida de la partida ───────────────────────────────────────────
   const start = () => {
-    writeStorage(PREFS_KEY, JSON.stringify({ mode, difficulty }));
+    writeStorage(PREFS_KEY, JSON.stringify({ mode, difficulty, viewMode }));
     setStates(freshStates(organs));
     setScore(0);
     setCombo(0);
@@ -267,7 +340,8 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
     setSummary(null);
     setResultsOpen(false);
     setPaused(false);
-    setQueue(shuffle(organs.map((organ) => organ.id)));
+    setView(viewMode === "posterior" ? "posterior" : "anterior");
+    setQueue(shuffle(active.map((organ) => organ.id)));
     setFeedback({ tone: "info", text: mode === "exam" ? g.examHelp : g.trayHelp });
     clock.current = { accumulated: 0, since: performance.now() };
     setPhase("playing");
@@ -275,16 +349,15 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
   };
 
   const finish = useCallback(
-    (finalStates: Record<OrganId, OrganState>, finalScore: number, timeUp = false) => {
+    (finalStates: Record<GameOrganId, OrganState>, finalScore: number, timeUp = false) => {
       setRunning(false);
       const elapsed = Math.min(getElapsed(), mode === "timed" ? TIMED_DURATION_MS : Number.POSITIVE_INFINITY);
       const bonus = mode === "timed" && !timeUp ? timeBonus(TIMED_DURATION_MS - elapsed, difficulty) : 0;
-      const firsts = organs.map((organ) => finalStates[organ.id].first ?? "wrong");
-      const acc = computeAccuracy(firsts, organs.length);
+      const firsts = active.map((organ) => finalStates[organ.id].first ?? "wrong");
+      const acc = computeAccuracy(firsts, active.length);
       const totalScore = finalScore + bonus;
-      const key = bestKey(mode, difficulty);
-      const previous = bests[key] ?? 0;
-      const newBest = totalScore > previous;
+      const key = bestKey(mode, difficulty, viewMode);
+      const newBest = totalScore > (bests[key] ?? 0);
       if (newBest) {
         writeStorage(key, String(totalScore));
         setBests((current) => ({ ...current, [key]: totalScore }));
@@ -296,13 +369,14 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
       setSelected(null);
       sound("finish");
       if (signedIn) {
-        for (const organ of organs) {
+        for (const organ of active) {
           const first = finalStates[organ.id].first;
-          if (first) trackStudy({ organId: organ.id, kind: "placement", correct: first !== "wrong" });
+          // Solo los órganos del atlas tienen ficha de progreso en el panel.
+          if (first && organ.tracked) trackStudy({ organId: organ.id as OrganId, kind: "placement", correct: first !== "wrong" });
         }
       }
     },
-    [bests, difficulty, getElapsed, mode, organs, setRunning, signedIn, sound],
+    [active, bests, difficulty, getElapsed, mode, setRunning, signedIn, sound, viewMode],
   );
 
   const statesRef = useRef(states);
@@ -333,26 +407,28 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
 
   // ── Colocación ────────────────────────────────────────────────────────────
   const regionName = (region: RegionId | null | undefined) => (region ? g.regions[region] : g.outside);
-  const primaryName = (organId: OrganId) => g.regions[ORGAN_TARGETS[organId].primary[0]];
+  /** Ubicación principal en la vista de juego (o la primera vista del órgano). */
+  const answerView = (organ: GameOrgan): View => (viewMode !== "both" ? viewMode : organ.views[0]);
+  const primaryName = (organ: GameOrgan) => g.regions[targetIn(answerView(organ), organ.id)?.primary[0] ?? "limbs"];
 
-  const canDrag = (organId: OrganId) => {
-    if (phase !== "playing" || paused || revealed) return false;
-    const status = states[organId].status;
-    if (settled(status)) return false;
+  const canDrag = (organId: GameOrganId) => {
+    if (phase !== "playing" || paused || revealed || flipping) return false;
+    if (!active.some((organ) => organ.id === organId)) return false;
+    if (settled(states[organId].status)) return false;
     if (mode === "timed") return organId === target;
     return true;
   };
 
-  const placeAt = (organId: OrganId, point: Point, dropPx?: { x: number; y: number; scale: number }) => {
+  const placeAt = (organId: GameOrganId, point: Point, dropPx?: { x: number; y: number; scale: number }) => {
     if (!canDrag(organId)) return;
     const current = states[organId];
-    const evaluation = evaluatePlacement(organId, point);
+    const evaluation = evaluatePlacement(view, organId, point);
     const name = organById[organId].name;
     setSelected(null);
     setHint((value) => (value === organId ? null : value));
 
     if (mode === "exam") {
-      setStates((all) => ({ ...all, [organId]: { ...current, status: "placed", point, region: evaluation.region } }));
+      setStates((all) => ({ ...all, [organId]: { ...current, status: "placed", view, point, region: evaluation.region } }));
       setFeedback({ tone: "info", text: t(g.feedbackPlaced, { organ: name, region: regionName(evaluation.region) }), organId });
       sound("pick");
       return;
@@ -375,11 +451,12 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
     }
 
     const points = placementPoints(evaluation.result, current.misses, combo, difficulty);
-    const anchor = ORGAN_TARGETS[organId].anchors[0];
+    const anchor = targetIn(view, organId)!.anchors[0];
     const snap = dropPx ? { dx: (point.x - anchor.x) * dropPx.scale, dy: (point.y - anchor.y) * dropPx.scale } : undefined;
     const nextState: OrganState = {
       ...current,
       status: evaluation.result === "correct" ? "correct" : "partial",
+      view,
       point,
       region: evaluation.region,
       first: current.first ?? evaluation.result,
@@ -398,48 +475,50 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
       text:
         evaluation.result === "correct"
           ? t(g.feedbackCorrect, { organ: name, region: regionName(evaluation.region) })
-          : t(g.feedbackPartial, { organ: name, region: regionName(evaluation.region), primary: primaryName(organId) }),
+          : t(g.feedbackPartial, { organ: name, region: regionName(evaluation.region), primary: g.regions[targetIn(view, organId)!.primary[0]] }),
       organId,
       points,
     });
     sound(nextCombo >= 3 && firstTry ? "combo" : evaluation.result === "correct" ? "correct" : "partial");
-    if (organs.every((organ) => settled(nextStates[organ.id].status))) later(() => finish(nextStates, nextScore), 650);
+    if (active.every((organ) => settled(nextStates[organ.id].status))) later(() => finish(nextStates, nextScore), 650);
   };
 
   const evaluateExam = () => {
     const stagePx = stageRef.current?.getBoundingClientRect();
     const scale = stagePx ? stagePx.width / VB_W : 1;
-    let total = 0;
+    let earned = 0;
     const next = { ...states };
-    for (const organ of organs) {
+    for (const organ of active) {
       const current = states[organ.id];
-      if (current.status !== "placed" || !current.point) continue;
-      const { result, region } = evaluatePlacement(organ.id, current.point);
+      if (current.status !== "placed" || !current.point || !current.view) continue;
+      const { result, region } = evaluatePlacement(current.view, organ.id, current.point);
       const points = placementPoints(result, 0, 0, difficulty);
-      total += points;
-      const anchor = ORGAN_TARGETS[organ.id].anchors[0];
+      earned += points;
+      const anchor = targetIn(current.view, organ.id)?.anchors[0];
       next[organ.id] = {
         ...current,
         status: result,
         region,
         first: result,
         points,
-        snap: result === "wrong" ? undefined : { dx: (current.point.x - anchor.x) * scale, dy: (current.point.y - anchor.y) * scale },
+        snap: result === "wrong" || !anchor ? undefined : { dx: (current.point.x - anchor.x) * scale, dy: (current.point.y - anchor.y) * scale },
       };
     }
     setStates(next);
-    setScore(total);
+    setScore(earned);
     setRevealed(true);
     sound("correct");
-    later(() => finish(next, total), 1400);
+    later(() => finish(next, earned), 1400);
   };
 
   const requestHint = () => {
-    const organId = selected ?? target ?? organs.find((organ) => !settled(states[organ.id].status))?.id;
+    const organId = selected ?? target ?? active.find((organ) => !settled(states[organ.id].status))?.id;
     if (!organId || !guided || mode === "exam") return;
+    const organ = organById[organId];
     setHint(organId);
     setScore((value) => Math.max(0, value - HINT_COST));
-    setFeedback({ tone: "info", text: t(g.hintText, { organ: organById[organId].name, text: organById[organId].location }), organId });
+    const text = targetIn(view, organId) ? t(g.hintText, { organ: organ.name, text: organ.location }) : t(g.flipHint, { organ: organ.name });
+    setFeedback({ tone: "info", text, organId });
     sound("pick");
   };
 
@@ -452,7 +531,6 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
       inside,
       point: { x: ((clientX - rect.left) / rect.width) * VB_W, y: ((clientY - rect.top) / rect.height) * VB_H },
       scale: rect.width / VB_W,
-      rect,
     };
   };
 
@@ -461,7 +539,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
     if (ghost) ghost.style.transform = `translate3d(${clientX}px, ${clientY}px, 0) translate(-50%, -50%)`;
   };
 
-  const onPointerDown = (organId: OrganId) => (event: ReactPointerEvent<HTMLElement>) => {
+  const onPointerDown = (organId: GameOrganId) => (event: ReactPointerEvent<HTMLElement>) => {
     if (!canDrag(organId) || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = { organId, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
@@ -480,7 +558,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
     moveGhost(event.clientX, event.clientY);
     if (guided) {
       const position = toViewBox(event.clientX, event.clientY);
-      const region = position?.inside ? regionAt(position.point) : null;
+      const region = position?.inside ? regionAt(view, position.point) : null;
       setHoverRegion((value) => (value === region ? value : region));
     }
   };
@@ -522,15 +600,19 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
 
   // ── Derivados de presentación ─────────────────────────────────────────────
   const highlights: Partial<Record<RegionId, RegionTone>> = {};
-  if (hint) for (const region of ORGAN_TARGETS[hint].primary) highlights[region] = "hint";
+  const hintTarget = hint ? targetIn(view, hint) : undefined;
+  if (hintTarget) for (const region of hintTarget.primary) highlights[region] = "hint";
   if (dragging && hoverRegion) highlights[hoverRegion] = "hover";
   if (flash?.region) highlights[flash.region] = "wrong";
 
-  const ordered = [...organs].sort((a, b) => ORGAN_TARGETS[a.id].layer - ORGAN_TARGETS[b.id].layer);
-  const bestValue = bests[bestKey(mode, difficulty)];
+  const layerOf = (organ: GameOrgan) => targetIn(view, organ.id)?.layer ?? 0;
+  const ordered = [...active].sort((a, b) => layerOf(a) - layerOf(b));
+  const bestValue = bests[bestKey(mode, difficulty, viewMode)];
   const sideLabels = { right: g.rightShort, left: g.leftShort, rightTitle: g.patientRight, leftTitle: g.patientLeft };
   const feedbackOrgan = feedback?.organId ? organById[feedback.organId] : null;
   const hudPrompt = target ? organById[target] : null;
+  const otherView: View = view === "anterior" ? "posterior" : "anterior";
+  const canFlip = viewMode === "both" && phase !== "setup";
 
   return (
     <div className={`game ${phase} ${dragging ? "is-dragging" : ""}`}>
@@ -574,26 +656,44 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
           {hudPrompt && phase === "playing" && (
             <p key={hudPrompt.id} className="game-prompt animate__animated animate__fadeInDown" data-testid="game-target">
               <span>{g.target}</span>
-              <OrganImage organId={hudPrompt.id} size={36} />
+              <span className="prompt-visual"><OrganVisual organ={hudPrompt} size={36} suffix="-prompt" /></span>
               <b>{hudPrompt.name}</b>
             </p>
           )}
 
           <div
-            className={`game-stage ${selected ? "awaiting-tap" : ""}`}
+            className={`game-stage ${selected ? "awaiting-tap" : ""} ${flipping ? "flipping" : ""}`}
             ref={stageRef}
             onClick={onStageClick}
             data-testid="game-stage"
+            data-view={view}
           >
-            <BodyFigure showGuides={showGuides} highlights={highlights} sideLabels={sideLabels} title={g.stage} idPrefix="game-body" />
+            <BodyFigure view={view} showGuides={showGuides} highlights={highlights} sideLabels={sideLabels} title={`${g.stage} · ${g.viewLabel[view]}`} idPrefix="game-body" />
+
+            <span className="stage-view-badge" aria-hidden="true">{g.viewLabel[view]}</span>
+            {canFlip && (
+              <button
+                type="button"
+                className="stage-flip"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  flipTo(otherView);
+                }}
+                disabled={flipping}
+                aria-label={t(g.flipTo, { view: g.viewLabel[otherView] })}
+                data-testid="game-flip"
+              >
+                <Repeat2 size={16} /> <span>{g.flip}</span>
+              </button>
+            )}
 
             {/* Líneas de revisión: del punto elegido a la ubicación correcta. */}
             {revealed && (
               <svg className="game-review-lines" viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true">
-                {organs.map((organ) => {
+                {active.map((organ) => {
                   const state = states[organ.id];
-                  if (state.status !== "wrong" || !state.point) return null;
-                  const anchor = ORGAN_TARGETS[organ.id].anchors[0];
+                  const anchor = state.view === view ? targetIn(view, organ.id)?.anchors[0] : undefined;
+                  if (state.status !== "wrong" || !state.point || !anchor) return null;
                   return <line key={organ.id} x1={state.point.x} y1={state.point.y} x2={anchor.x} y2={anchor.y} />;
                 })}
               </svg>
@@ -602,15 +702,17 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
             <div className="game-overlay">
               {ordered.map((organ) => {
                 const state = states[organ.id];
-                const targetInfo = ORGAN_TARGETS[organ.id];
-                if (settled(state.status)) {
+                if (state.view !== view) return null;
+                const targetInfo = targetIn(view, organ.id);
+                if (settled(state.status) && targetInfo) {
                   return targetInfo.anchors.map((anchor, index) => (
                     <span
                       key={`${organ.id}-${index}`}
-                      className={`placed-organ ${state.status}`}
+                      className={`placed-organ ${state.status} ${organ.art}`}
                       style={{
                         ...toPercent(anchor),
                         width: `${(targetInfo.size / VB_W) * 100}%`,
+                        aspectRatio: `1 / ${targetInfo.aspect ?? 1}`,
                         zIndex: targetInfo.layer,
                         "--dx": `${state.snap?.dx ?? 0}px`,
                         "--dy": `${state.snap?.dy ?? 0}px`,
@@ -619,22 +721,25 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
                       data-testid={index === 0 ? `placed-${organ.id}` : undefined}
                       data-result={state.status}
                     >
-                      <OrganImage organId={organ.id} size={targetInfo.size} alt={index === 0 ? `${organ.name} · ${regionName(state.region)}` : ""} />
+                      <OrganVisual organ={organ} size={targetInfo.size} alt={index === 0 ? `${organ.name} · ${regionName(state.region)}` : ""} suffix={`-placed-${index}`} />
                     </span>
                   ));
                 }
                 if ((state.status === "placed" || state.status === "wrong") && state.point) {
-                  const anchor = targetInfo.anchors[0];
                   return (
                     <span key={organ.id} className="placed-group">
-                      {state.status === "wrong" && revealed && (
-                        <span className="answer-ghost" style={{ ...toPercent(anchor), width: `${(targetInfo.size / VB_W) * 100}%` }} aria-hidden="true">
-                          <OrganImage organId={organ.id} size={targetInfo.size} />
+                      {state.status === "wrong" && revealed && targetInfo && (
+                        <span
+                          className={`answer-ghost ${organ.art}`}
+                          style={{ ...toPercent(targetInfo.anchors[0]), width: `${(targetInfo.size / VB_W) * 100}%`, aspectRatio: `1 / ${targetInfo.aspect ?? 1}` }}
+                          aria-hidden="true"
+                        >
+                          <OrganVisual organ={organ} size={targetInfo.size} suffix="-ghost" />
                         </span>
                       )}
                       <button
                         type="button"
-                        className={`pin-organ ${state.status}`}
+                        className={`pin-organ ${state.status} ${organ.art}`}
                         style={toPercent(state.point)}
                         onPointerDown={onPointerDown(organ.id)}
                         onPointerMove={onPointerMove}
@@ -645,7 +750,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
                         aria-label={`${organ.name} · ${regionName(state.region)}`}
                         data-testid={`pin-${organ.id}`}
                       >
-                        <OrganImage organId={organ.id} size={44} />
+                        <OrganVisual organ={organ} size={44} suffix="-pin" />
                         {state.status === "wrong" && <X size={14} className="pin-mark" />}
                       </button>
                     </span>
@@ -692,6 +797,19 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
                       );
                     })}
                   </fieldset>
+                  <fieldset className="game-difficulty game-views">
+                    <legend>{g.view}</legend>
+                    <div role="presentation">
+                      {VIEW_MODES.map((option) => (
+                        <label key={option} className={viewMode === option ? "selected" : ""}>
+                          <input type="radio" name="game-view" value={option} checked={viewMode === option} onChange={() => setViewMode(option)} />
+                          {g.views[option].name}
+                          <small>{t(g.organCount, { count: countFor(option) })}</small>
+                        </label>
+                      ))}
+                    </div>
+                    <small>{g.views[viewMode].text}</small>
+                  </fieldset>
                   <fieldset className="game-difficulty">
                     <legend>{g.difficulty}</legend>
                     <div role="presentation">
@@ -722,18 +840,19 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
         </section>
 
         <aside className="game-tray" aria-label={g.tray}>
-          <h2>{g.tray}</h2>
+          <h2>{g.tray} <small>{t(g.organCount, { count: active.length })}</small></h2>
           <ul>
-            {organs.map((organ, index) => {
+            {active.map((organ, index) => {
               const state = states[organ.id];
               const done = settled(state.status);
               const enabled = canDrag(organ.id);
               const isTarget = organ.id === target;
+              const elsewhere = viewMode === "both" && !organ.views.includes(view);
               return (
                 <li key={organ.id} className={`${done ? "done" : ""} ${state.status === "placed" ? "placed" : ""}`} style={{ "--i": index } as CSSProperties}>
                   <button
                     type="button"
-                    className={`tray-organ ${selected === organ.id ? "selected" : ""} ${dragging === organ.id ? "dragging" : ""} ${isTarget ? "target" : ""}`}
+                    className={`tray-organ ${organ.art} ${selected === organ.id ? "selected" : ""} ${dragging === organ.id ? "dragging" : ""} ${isTarget ? "target" : ""} ${elsewhere ? "other-view" : ""}`}
                     style={{ "--accent": organ.accent } as CSSProperties}
                     onPointerDown={onPointerDown(organ.id)}
                     onPointerMove={onPointerMove}
@@ -749,10 +868,10 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
                     aria-disabled={!enabled}
                     data-testid={`tray-${organ.id}`}
                   >
-                    <OrganImage organId={organ.id} size={52} />
+                    <span className="tray-visual"><OrganVisual organ={organ} size={52} suffix="-tray" /></span>
                     <span>
                       <b>{organ.name}</b>
-                      <small>{organ.system}</small>
+                      <small>{elsewhere ? g.viewLabel[organ.views[0]] : organ.system}</small>
                     </span>
                     {done && <Check size={16} className="tray-done animate__animated animate__bounceIn" />}
                   </button>
@@ -811,7 +930,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
             <div className="region-picker animate__animated animate__fadeIn">
               <p>{t(g.selected, { organ: organById[selected].name })}</p>
               <ul aria-label={t(g.regionList, { organ: organById[selected].name })}>
-                {REGION_IDS.map((region) => (
+                {REGION_IDS_BY_VIEW[view].map((region) => (
                   <li key={region}>
                     <button type="button" onClick={() => placeAt(selected, regionCenter(region))} data-testid={`region-${region}`}>
                       {g.regions[region]}
@@ -846,7 +965,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
       <div className={`drag-ghost ${dragging ? "active" : ""}`} ref={ghostRef} aria-hidden="true">
         {dragging && (
           <>
-            <OrganImage organId={dragging} size={72} />
+            <span className={`ghost-visual ${organById[dragging].art}`}><OrganVisual organ={organById[dragging]} size={72} suffix="-ghost-drag" /></span>
             {guided && <span className="drag-region">{hoverRegion ? g.regions[hoverRegion] : g.outside}</span>}
           </>
         )}
@@ -857,7 +976,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
           {(summary.newBest || summary.stars === 3) && <Confetti />}
           <Dialog open={resultsOpen} onClose={() => setResultsOpen(false)} labelledBy="game-results-title" variant="wide" className="game-results">
             <span className="modal-icon clinical animate__animated animate__bounceIn"><Trophy size={24} /></span>
-            <em>{g.modes[mode].name} · {g.difficulties[difficulty].name}</em>
+            <em>{g.modes[mode].name} · {g.views[viewMode].name} · {g.difficulties[difficulty].name}</em>
             <h2 id="game-results-title">{summary.timeUp ? g.timeUp : g.resultsTitle}</h2>
             <div className="result-stars" role="img" aria-label={t(g.stars, { count: summary.stars })}>
               {[0, 1, 2].map((index) => (
@@ -874,7 +993,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
 
             <h3>{g.review}</h3>
             <ul className="result-review">
-              {organs.map((organ, index) => {
+              {active.map((organ, index) => {
                 const state = states[organ.id];
                 // Un error al primer intento que luego se corrigió se distingue de un fallo definitivo.
                 const fixed = state.first === "wrong" && settled(state.status);
@@ -888,13 +1007,13 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
                 }[result];
                 return (
                   <li key={organ.id} className={result} style={{ "--i": index } as CSSProperties} data-testid={`review-${organ.id}`}>
-                    <OrganImage organId={organ.id} size={36} />
+                    <span className="review-visual"><OrganVisual organ={organ} size={36} suffix="-review" /></span>
                     <span>
                       <b>{organ.name}</b>
-                      <small>{g.answer}: {primaryName(organ.id)}</small>
+                      <small>{g.answer}: {primaryName(organ)}{viewMode === "both" ? ` · ${g.viewLabel[answerView(organ)]}` : ""}</small>
                     </span>
                     <em>{label}</em>
-                    {result !== "correct" && <Link href={`/atlas?organ=${organ.id}`}>{g.study}</Link>}
+                    {result !== "correct" && organ.tracked && <Link href={`/atlas?organ=${organ.id}`}>{g.study}</Link>}
                   </li>
                 );
               })}

@@ -8,6 +8,19 @@ export type GameMode = (typeof GAME_MODES)[number];
 export const DIFFICULTIES = ["guided", "expert"] as const;
 export type Difficulty = (typeof DIFFICULTIES)[number];
 
+/** Qué cara del cuerpo se juega; "both" alterna con el botón de girar. */
+export const VIEW_MODES = ["anterior", "posterior", "both"] as const;
+export type ViewMode = (typeof VIEW_MODES)[number];
+
+export function isViewMode(value: unknown): value is ViewMode {
+  return (VIEW_MODES as readonly unknown[]).includes(value);
+}
+
+/** Clave de récord local: cada combinación tiene su propia tabla. */
+export function bestKey(mode: GameMode, difficulty: Difficulty, viewMode: ViewMode): string {
+  return `atlas:game:best:v2:${mode}:${difficulty}:${viewMode}`;
+}
+
 export const TIMED_DURATION_MS = 90_000;
 export const TIMED_MISS_PENALTY_MS = 5_000;
 export const HINT_COST = 20;

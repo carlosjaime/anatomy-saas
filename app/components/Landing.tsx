@@ -164,7 +164,7 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
               sideLabels={{ right: m.game.rightShort, left: m.game.leftShort, rightTitle: m.game.patientRight, leftTitle: m.game.patientLeft }}
             />
             {TEASER_ORGANS.map((id, index) => {
-              const target = ORGAN_TARGETS[id];
+              const target = ORGAN_TARGETS.anterior[id]!;
               const anchor = target.anchors[0];
               return (
                 <img

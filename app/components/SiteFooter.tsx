@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowUp, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { BrandLockup } from "./BrandMark";
+import { BackToTop } from "./ui/BackToTop";
 import type { Messages } from "../i18n/messages/es-MX";
 import { DEVELOPER } from "../lib/brand";
 
@@ -95,7 +96,7 @@ export function SiteFooter({ m, variant = "full", signedIn = false, className = 
 
       <div className="footer-bottom">
         <Copyright m={m} />
-        <a className="footer-top" href="#top"><ArrowUp size={14} /> {f.backToTop}</a>
+        <BackToTop label={f.backToTop} />
       </div>
     </footer>
   );

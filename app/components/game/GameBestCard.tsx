@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Puzzle, Star } from "lucide-react";
 import { useI18n } from "../../i18n/client";
-import { DIFFICULTIES, GAME_MODES, type Difficulty, type GameMode } from "../../lib/game/scoring";
+import { DIFFICULTIES, GAME_MODES, VIEW_MODES, bestKey, type Difficulty, type GameMode, type ViewMode } from "../../lib/game/scoring";
 
-type Best = { score: number; mode: GameMode; difficulty: Difficulty };
+type Best = { score: number; mode: GameMode; difficulty: Difficulty; viewMode: ViewMode };
 
 /** Récord local del reto (los récords viven en el dispositivo, como en un juego). */
 function readBest(): Best | null {
@@ -14,8 +14,10 @@ function readBest(): Best | null {
   try {
     for (const mode of GAME_MODES) {
       for (const difficulty of DIFFICULTIES) {
-        const score = Number(window.localStorage.getItem(`atlas:game:best:${mode}:${difficulty}`));
-        if (Number.isFinite(score) && score > (best?.score ?? 0)) best = { score, mode, difficulty };
+        for (const viewMode of VIEW_MODES) {
+          const score = Number(window.localStorage.getItem(bestKey(mode, difficulty, viewMode)));
+          if (Number.isFinite(score) && score > (best?.score ?? 0)) best = { score, mode, difficulty, viewMode };
+        }
       }
     }
   } catch {
@@ -43,7 +45,9 @@ export function GameBestCard() {
         <p>{g.cardText}</p>
         <p className="game-card-best">
           <Star size={14} />{" "}
-          {best ? `${t(g.best, { score: best.score })} · ${g.modes[best.mode].name} · ${g.difficulties[best.difficulty].name}` : g.noBest}
+          {best
+            ? `${t(g.best, { score: best.score })} · ${g.modes[best.mode].name} · ${g.views[best.viewMode].name} · ${g.difficulties[best.difficulty].name}`
+            : g.noBest}
         </p>
       </div>
       <Link className="btn btn-primary btn-shine" href="/juego">{g.cardCta} <ArrowRight size={16} /></Link>
