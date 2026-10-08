@@ -15,6 +15,12 @@ Plataforma SaaS de anatomía clínica en 3D para estudiantes de medicina, reside
   primera suscripción, cambio de plan sin cobros duplicados y cancelación con acceso hasta el fin del periodo pagado.
 - **Panel de estudio** (`/dashboard`): dominio por órgano, precisión, racha, actividad de 14 días y recomendación.
 - **Planes en MXN** con IVA incluido y facturación anual con descuento.
+- **Bilingüe en tiempo real**: español (México) e inglés (EUA). El selector cambia todo —interfaz, contenido médico,
+  validaciones, errores de la API, correos y metadatos— con un fundido de salida/entrada y sin perder el estado
+  (órgano seleccionado, formularios, pestañas abiertas).
+- **Micro-interacciones**: transiciones entre páginas, barra de progreso de navegación, toasts con temporizador,
+  modales de confirmación, esqueletos de carga, ripple, contadores animados, confeti al activar un plan y animaciones
+  de [Animate.css](https://animate.style) (subconjunto generado; respeta `prefers-reduced-motion`).
 
 ## Arquitectura
 
@@ -29,6 +35,16 @@ Plataforma SaaS de anatomía clínica en 3D para estudiantes de medicina, reside
 | Rutas API | `app/api/auth/*`, `app/api/billing/*`, `app/api/progress` |
 | Validación compartida cliente/servidor | `app/lib/validation.ts` |
 | Motor 3D, recorrido y fisiología | `app/lib/three/viewer.ts`, `app/lib/three/motion.ts` |
+| Idiomas: configuración, diccionarios y proveedor | `app/i18n/*` |
+| Contenido médico traducido (órganos, artículos, glosario) | `app/content/*` |
+| UI transversal (toasts, modales, progreso, esqueletos) | `app/components/ui/*` |
+
+**Idiomas**: el idioma vive en la cookie `atlas_locale` (o se negocia con `Accept-Language`). El servidor renderiza en
+ese idioma y envía al cliente **solo** el diccionario y el contenido activos como props, así que el bundle JS no
+incluye textos de ningún idioma. Al cambiarlo, el cliente funde la página, escribe la cookie y pide
+`router.refresh()`: React reconcilia el árbol con los nuevos textos conservando el estado. Cualquier idioma nuevo debe
+cumplir el tipo `Messages` de `app/i18n/messages/es-MX.ts`; una prueba verifica que ambos diccionarios tengan las
+mismas claves y variables.
 
 **Seguridad**: contraseñas con PBKDF2-SHA256 (100 000 iteraciones, sal aleatoria); sesiones con token opaco cuyo
 SHA-256 se guarda en BD, en cookie `HttpOnly` + `SameSite=Lax` (+ `Secure` en HTTPS) con vigencia de 30 días;
@@ -67,6 +83,19 @@ Ver `.env.example`.
 ## Comandos
 
 - `npm run lint` · `npm run typecheck`
-- `npm run test:unit`: pruebas de dominio (planes, enciclopedia, cuentas, progreso, fisiología) contra SQLite en memoria
+- `npm run test:unit`: pruebas de dominio (planes, enciclopedia, cuentas, progreso, fisiología, idiomas) contra SQLite
+  en memoria
 - `npm test`: build de vinext + pruebas de render SSR + pruebas de dominio
 - `npm run build:next`: build de Vercel
+- `npm run test:e2e` (tras `build:next`) o `npm run test:e2e:full`: suite Playwright de extremo a extremo
+- `npm run build:animations`: regenera `app/styles/animate-subset.css` desde `animate.css`
+
+## Pruebas E2E
+
+La suite (`e2e/`) corre contra el build de producción con `ATLAS_E2E=1`, que habilita el proveedor de pagos de
+demostración y un buzón de correo en memoria (`/api/test/mailbox`) para leer los enlaces de verificación y
+recuperación. Ese modo nunca se activa con `VERCEL_ENV=production` ni con credenciales reales, y fuera de él la ruta
+del buzón responde 404. Cubre: cambio de idioma en vivo (fundido, persistencia, negociación, estado conservado),
+registro con validación, verificación, inicio/cierre de sesión, recuperación de contraseña, prueba gratis, activación
+y cancelación de suscripción, atlas, cuestionario, enciclopedia, tarjetas, 404 y ausencia de desbordes a 390 y 320 px.
+Cualquier excepción o `console.error` en el navegador hace fallar la prueba.
