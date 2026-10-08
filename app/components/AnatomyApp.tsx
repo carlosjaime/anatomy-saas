@@ -36,6 +36,7 @@ import {
 import { OrganViewer, type OrganViewerHandle } from "./OrganViewer";
 import { BrandLockup } from "./BrandMark";
 import { Dialog } from "./Dialog";
+import { SiteFooter } from "./SiteFooter";
 import { PlansDialog } from "./PlansDialog";
 import { Encyclopedia, type EncyclopediaTab } from "./Encyclopedia";
 import { AtlasContentProvider, useAtlasContent } from "./atlas/AtlasContent";
@@ -618,6 +619,8 @@ function AtlasWorkspace({ user, initialOrganId = "heart", initialOverlay = null 
           </article>
         </section>
       )}
+
+      <SiteFooter m={m} variant="compact" className="app-footer" />
 
       <nav className="mobile-tabbar" aria-label={m.nav.mobile}>
         <button type="button" className={!mobileLibrary && overlay === null ? "active" : ""} onClick={goHome}>

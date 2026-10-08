@@ -21,7 +21,7 @@ test.describe("responsive móvil", () => {
   for (const width of [390, 320]) {
     test(`sin desbordes horizontales a ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
-      for (const path of ["/", "/atlas", "/login", "/registro", "/recuperar", "/no-existe"]) {
+      for (const path of ["/", "/acerca", "/atlas", "/login", "/registro", "/recuperar", "/no-existe"]) {
         await page.goto(path);
         await page.waitForLoadState("networkidle");
         await expectNoHorizontalOverflow(page, path);

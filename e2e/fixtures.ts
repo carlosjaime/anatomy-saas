@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
 import { expect, test as base } from "@playwright/test";
+import { DEVELOPER } from "../app/lib/brand";
+
+// Las pruebas no dependen de la red externa: el logotipo remoto se sirve local.
+const LOGO_STUB = readFileSync(new URL("../public/icon-192.png", import.meta.url));
 
 /**
  * `test` con una verificación automática: cualquier excepción no capturada o
@@ -9,6 +14,7 @@ import { expect, test as base } from "@playwright/test";
 export const test = base.extend<{ consoleGuard: void }>({
   consoleGuard: [
     async ({ page }, use) => {
+      await page.route(DEVELOPER.logoUrl, (route) => route.fulfill({ status: 200, contentType: "image/png", body: LOGO_STUB }));
       const problems: string[] = [];
       page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
       page.on("console", (message) => {

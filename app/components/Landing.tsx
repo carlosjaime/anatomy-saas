@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { BrandLockup } from "./BrandMark";
 import { RevealOnScroll } from "./Reveal";
+import { SiteFooter } from "./SiteFooter";
 import { CountUp } from "./ui/CountUp";
 import { LanguageSwitcher } from "./ui/LanguageSwitcher";
 import { format } from "../i18n/format";
@@ -242,15 +243,7 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
         </section>
       </main>
 
-      <footer className="landing-footer">
-        <BrandLockup compact />
-        <p>{l.footer}</p>
-        <nav aria-label={l.footerNav}>
-          <Link href="/atlas">{l.atlas}</Link>
-          <Link href="/login">{m.nav.login}</Link>
-          <Link href="/registro">{m.nav.register}</Link>
-        </nav>
-      </footer>
+      <SiteFooter m={m} signedIn={Boolean(user)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Activity, BookOpenCheck, LayoutDashboard, Route } from "lucide-react";
+import { SiteFooter } from "./SiteFooter";
 import { BrandLockup } from "./BrandMark";
 import { LanguageSwitcher } from "./ui/LanguageSwitcher";
 import type { Messages } from "../i18n/messages/es-MX";
@@ -40,6 +41,7 @@ export function AuthLayout({ m, title, subtitle, children, footer }: { m: Messag
           {children}
           <div className="auth-footer">{footer}</div>
         </div>
+        <SiteFooter m={m} variant="compact" className="auth-site-footer" />
       </main>
     </div>
   );

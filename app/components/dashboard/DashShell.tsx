@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Box, Library, LayoutDashboard, UserRound } from "lucide-react";
+import { SiteFooter } from "../SiteFooter";
 import { BrandLockup } from "../BrandMark";
 import { LanguageSwitcher } from "../ui/LanguageSwitcher";
 import { LogoutButton } from "./LogoutButton";
@@ -33,7 +34,10 @@ export function DashShell({ user, active, m, children }: { user: SessionUser; ac
         <LanguageSwitcher compact className="dash-lang" />
         <LogoutButton className="dash-logout" />
       </aside>
-      <main className="dash-main" id="main">{children}</main>
+      <main className="dash-main" id="main">
+        {children}
+        <SiteFooter m={m} variant="compact" className="dash-footer" />
+      </main>
     </div>
   );
 }
