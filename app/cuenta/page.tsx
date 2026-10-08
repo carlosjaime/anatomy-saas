@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { getDb } from "../../db";
 import { AccountPage } from "../components/AccountPage";
+import { getI18n } from "../i18n/server";
 import { getBillingProvider, getBillingSummary, syncSubscription } from "../lib/server/billing/service";
 import { requireCurrentUser } from "../lib/server/session";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Mi cuenta — Atlas Anatómico", robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).m.meta.account, robots: { index: false } };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -35,7 +38,7 @@ async function loadAccount(params: Record<string, string | string[] | undefined>
 
 export default async function AccountRoute({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const { user, now, billing, syncFailed, paymentsEnabled } = await loadAccount(params);
+  const [{ user, now, billing, syncFailed, paymentsEnabled }, { locale, m }] = await Promise.all([loadAccount(params), getI18n()]);
   return (
     <AccountPage
       user={user}
@@ -44,6 +47,8 @@ export default async function AccountRoute({ searchParams }: { searchParams: Sea
       notice={first(params.billing) ?? null}
       syncFailed={syncFailed}
       paymentsEnabled={paymentsEnabled}
+      locale={locale}
+      m={m}
     />
   );
 }

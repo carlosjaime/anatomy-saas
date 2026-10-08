@@ -1,19 +1,19 @@
+import { format } from "../i18n/format";
+import type { Messages } from "../i18n/messages/es-MX";
+
 /**
  * Validación de formularios de cuenta, compartida por cliente y servidor para
- * que los mensajes sean idénticos en ambos lados. El servidor siempre vuelve a
- * validar: el cliente solo adelanta la retroalimentación.
+ * que los mensajes sean idénticos en ambos lados. Recibe los textos del idioma
+ * activo; el servidor siempre vuelve a validar (el cliente solo adelanta la
+ * retroalimentación).
  */
 
-export const ROLE_OPTIONS = [
-  { id: "estudiante", label: "Estudiante de medicina" },
-  { id: "interno", label: "Médico interno" },
-  { id: "residente", label: "Residente" },
-  { id: "medico", label: "Médico especialista o general" },
-  { id: "docente", label: "Docente" },
-  { id: "otro", label: "Otro profesional de la salud" },
-] as const;
+export type ValidationMessages = Messages["validation"];
 
-export type RoleId = (typeof ROLE_OPTIONS)[number]["id"];
+/** Perfiles profesionales; las etiquetas viven en el diccionario (`roles`). */
+export const ROLE_IDS = ["estudiante", "interno", "residente", "medico", "docente", "otro"] as const;
+
+export type RoleId = (typeof ROLE_IDS)[number];
 
 export const PASSWORD_MIN_LENGTH = 10;
 const PASSWORD_MAX_LENGTH = 128;
@@ -42,19 +42,19 @@ export function normalizeEmail(value: unknown): string {
 }
 
 export function isRole(value: unknown): value is RoleId {
-  return ROLE_OPTIONS.some((option) => option.id === value);
+  return (ROLE_IDS as readonly unknown[]).includes(value);
 }
 
-export function validateEmail(email: string): string | null {
-  if (!email) return "Ingresa tu correo electrónico.";
-  if (email.length > 254 || !EMAIL_PATTERN.test(email)) return "Ingresa un correo electrónico válido.";
+export function validateEmail(email: string, v: ValidationMessages): string | null {
+  if (!email) return v.emailRequired;
+  if (email.length > 254 || !EMAIL_PATTERN.test(email)) return v.emailInvalid;
   return null;
 }
 
-export function validatePassword(password: string): string | null {
-  if (password.length < PASSWORD_MIN_LENGTH) return `Usa al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
-  if (password.length > PASSWORD_MAX_LENGTH) return `Usa como máximo ${PASSWORD_MAX_LENGTH} caracteres.`;
-  if (!/[A-Za-zÀ-ÿ]/.test(password) || !/\d/.test(password)) return "Combina letras y números.";
+export function validatePassword(password: string, v: ValidationMessages): string | null {
+  if (password.length < PASSWORD_MIN_LENGTH) return format(v.passwordMin, { min: PASSWORD_MIN_LENGTH });
+  if (password.length > PASSWORD_MAX_LENGTH) return format(v.passwordMax, { max: PASSWORD_MAX_LENGTH });
+  if (!/[A-Za-zÀ-ÿ]/.test(password) || !/\d/.test(password)) return v.passwordMix;
   return null;
 }
 
@@ -66,25 +66,26 @@ export function passwordStrength(password: string): number {
   if (password.length >= 14) score += 1;
   if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
   if (/\d/.test(password) && /[^A-Za-z0-9]/.test(password)) score += 1;
-  return validatePassword(password) ? Math.min(score, 1) : Math.max(score, 2);
+  const meetsPolicy = password.length >= PASSWORD_MIN_LENGTH && /[A-Za-zÀ-ÿ]/.test(password) && /\d/.test(password);
+  return meetsPolicy ? Math.max(score, 2) : Math.min(score, 1);
 }
 
-export function validateRegistration(raw: Record<string, unknown>): ValidationResult<RegistrationInput> {
+export function validateRegistration(raw: Record<string, unknown>, v: ValidationMessages): ValidationResult<RegistrationInput> {
   const errors: FieldErrors<RegistrationInput> = {};
   const name = asString(raw.name).trim().replace(/\s+/g, " ");
   const email = normalizeEmail(raw.email);
   const password = asString(raw.password);
   const institution = asString(raw.institution).trim().replace(/\s+/g, " ");
 
-  if (name.length < 2) errors.name = "Ingresa tu nombre completo.";
-  else if (name.length > 80) errors.name = "El nombre es demasiado largo.";
-  const emailError = validateEmail(email);
+  if (name.length < 2) errors.name = v.nameRequired;
+  else if (name.length > 80) errors.name = v.nameTooLong;
+  const emailError = validateEmail(email, v);
   if (emailError) errors.email = emailError;
-  const passwordError = validatePassword(password);
+  const passwordError = validatePassword(password, v);
   if (passwordError) errors.password = passwordError;
-  if (!isRole(raw.role)) errors.role = "Selecciona tu perfil.";
-  if (institution.length > 120) errors.institution = "El nombre de la institución es demasiado largo.";
-  if (raw.terms !== true) errors.terms = "Debes aceptar los términos para continuar.";
+  if (!isRole(raw.role)) errors.role = v.roleRequired;
+  if (institution.length > 120) errors.institution = v.institutionTooLong;
+  if (raw.terms !== true) errors.terms = v.termsRequired;
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return {
@@ -93,14 +94,14 @@ export function validateRegistration(raw: Record<string, unknown>): ValidationRe
   };
 }
 
-export function validateLogin(raw: Record<string, unknown>): ValidationResult<LoginInput> {
+export function validateLogin(raw: Record<string, unknown>, v: ValidationMessages): ValidationResult<LoginInput> {
   const email = normalizeEmail(raw.email);
   const password = asString(raw.password);
   const errors: FieldErrors<LoginInput> = {};
-  const emailError = validateEmail(email);
+  const emailError = validateEmail(email, v);
   if (emailError) errors.email = emailError;
-  if (!password) errors.password = "Ingresa tu contraseña.";
-  else if (password.length > PASSWORD_MAX_LENGTH) errors.password = "Contraseña no válida.";
+  if (!password) errors.password = v.passwordRequired;
+  else if (password.length > PASSWORD_MAX_LENGTH) errors.password = v.passwordInvalid;
   return Object.keys(errors).length > 0 ? { ok: false, errors } : { ok: true, data: { email, password } };
 }
 

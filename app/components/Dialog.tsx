@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useI18n } from "../i18n/client";
 
 /** Debe coincidir con la duración de `dialog-out` / `sheet-out` en globals.css. */
 const EXIT_MS = 220;
@@ -90,6 +91,7 @@ export function Dialog({
 }: Props) {
   const presence = usePresence(open);
   const isClient = useIsClient();
+  const { m } = useI18n();
   const panelRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
   const mounted = presence !== "closed" && isClient;
@@ -164,7 +166,7 @@ export function Dialog({
       >
         <span className="sheet-handle" aria-hidden="true" />
         {!hideCloseButton && (
-          <button className="modal-close" type="button" onClick={onClose} aria-label="Cerrar">
+          <button className="modal-close" type="button" onClick={onClose} aria-label={m.common.close}>
             <X size={18} />
           </button>
         )}

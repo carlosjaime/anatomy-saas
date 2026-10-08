@@ -16,20 +16,20 @@ import {
   GraduationCap,
   Heart,
   LayoutDashboard,
-  Lightbulb,
-  Route,
-  Target,
   LayoutGrid,
   Library,
+  Lightbulb,
   Lock,
   LogOut,
   Microscope,
   Play,
+  Route,
   Search,
   Share2,
   Sparkles,
   Star,
   Stethoscope,
+  Target,
   User,
   X,
 } from "lucide-react";
@@ -38,9 +38,14 @@ import { BrandLockup } from "./BrandMark";
 import { Dialog } from "./Dialog";
 import { PlansDialog } from "./PlansDialog";
 import { Encyclopedia, type EncyclopediaTab } from "./Encyclopedia";
-import { organById, organs, type Organ, type OrganId } from "../lib/anatomy-data";
-import { hasFeature, planById, type PlanId } from "../lib/plans";
-import { studyGuides } from "../lib/encyclopedia-data";
+import { AtlasContentProvider, useAtlasContent } from "./atlas/AtlasContent";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { LanguageSwitcher } from "./ui/LanguageSwitcher";
+import { flashToast, useToast } from "./ui/Toast";
+import { useI18n } from "../i18n/client";
+import type { AtlasContent } from "../content/types";
+import type { Organ, OrganId } from "../lib/anatomy-data";
+import { formatMXN, hasFeature, monthlyEquivalent, type PlanId } from "../lib/plans";
 import { logout, trackStudy } from "../lib/client-api";
 import type { SessionUser } from "../lib/server/auth-store";
 
@@ -48,17 +53,14 @@ type LearningType = "lesson" | "quiz" | "animation" | "system";
 type Overlay = "learning" | "plans" | "encyclopedia" | null;
 
 const FAVORITES_KEY = "atlas-anatomico:favoritos";
-
-function isOrganId(value: unknown): value is OrganId {
-  return typeof value === "string" && Object.hasOwn(organById, value);
-}
+const STARTING_PRICE = formatMXN(monthlyEquivalent("student", "monthly"));
 
 /** Lee favoritos persistidos descartando cualquier valor desconocido. */
-function parseFavorites(raw: string | null): Set<OrganId> {
+function parseFavorites(raw: string | null, known: Record<string, unknown>): Set<OrganId> {
   if (!raw) return new Set();
   try {
     const parsed: unknown = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed.filter(isOrganId) : []);
+    return new Set(Array.isArray(parsed) ? parsed.filter((id): id is OrganId => typeof id === "string" && Object.hasOwn(known, id)) : []);
   } catch {
     return new Set();
   }
@@ -103,15 +105,25 @@ function OrganArt({
   );
 }
 
-const SYSTEMS = Array.from(new Set(organs.map((organ) => organ.system)));
-
 type Props = {
   user: SessionUser | null;
+  content: AtlasContent;
   initialOrganId?: OrganId;
   initialOverlay?: "encyclopedia" | "plans" | null;
 };
 
-export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = null }: Props) {
+export function AnatomyApp({ content, ...props }: Props) {
+  return (
+    <AtlasContentProvider content={content}>
+      <AtlasWorkspace {...props} />
+    </AtlasContentProvider>
+  );
+}
+
+function AtlasWorkspace({ user, initialOrganId = "heart", initialOverlay = null }: Omit<Props, "content">) {
+  const { m, t } = useI18n();
+  const toast = useToast();
+  const { organs, organById, guides, systems } = useAtlasContent();
   const [organId, setOrganId] = useState<OrganId>(initialOrganId);
   const [autoRotate, setAutoRotate] = useState(true);
   const [physiology, setPhysiology] = useState(true);
@@ -120,8 +132,10 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
   const [learningType, setLearningType] = useState<LearningType>("lesson");
   const [encyclopediaTab, setEncyclopediaTab] = useState<EncyclopediaTab>("articles");
   const [query, setQuery] = useState("");
-  const [activeSystem, setActiveSystem] = useState<string | null>(null);
+  // El filtro por sistema se guarda por índice: sobrevive al cambio de idioma.
+  const [activeSystem, setActiveSystem] = useState<number | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [mobileLibrary, setMobileLibrary] = useState(false);
   // Siempre lo determina el servidor a partir de la suscripción confirmada.
   const plan: PlanId = user?.plan ?? "free";
@@ -133,25 +147,27 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
   const viewerHandle = useRef<OrganViewerHandle>(null);
   const prefetched = useRef(new Set<OrganId>());
   const organ = organById[organId];
+  const guide = guides[organId];
   const reference = organById[organId === "heart" ? "brain" : "heart"];
   const fullAccess = hasFeature(plan, "allOrgans");
   const locked = organ.tier === "pro" && !fullAccess;
+  const planName = m.plans.catalog[plan].name;
 
   // A one-time read after mount, deliberately outside the initial render: the
   // server has no localStorage, so seeding state from it during render would
-  // desync the SSR markup from the client's first paint. This single
-  // post-hydration sync is the correct fix for that, not a cascading loop.
+  // desync the SSR markup from the client's first paint.
   useEffect(() => {
     // Physiological motion is opt-out for people who asked the OS for less motion.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setPhysiology(false);
     try {
-      setFavorites(parseFavorites(window.localStorage.getItem(FAVORITES_KEY)));
+      setFavorites(parseFavorites(window.localStorage.getItem(FAVORITES_KEY), organById));
     } catch {
-      // Private browsing or a disabled storage API — the app still works,
-      // it just won't remember the plan or favorites between visits.
+      // Private browsing or a disabled storage API — favorites just won't persist.
     }
-  }, [user]);
+    // Solo una vez tras montar: los ids de órgano no cambian con el idioma.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Record organ views for signed-in users (the server dedupes repeats).
   useEffect(() => {
@@ -160,31 +176,33 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
 
   const signOut = async () => {
     await logout();
+    flashToast(m.toasts.loggedOut, "info");
     window.location.assign("/");
   };
 
-  const toggleFavorite = (id: OrganId) => {
-    setFavorites((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
-      } catch {
-        // Ignore — favorites just won't persist this session.
-      }
-      return next;
-    });
+  const toggleFavorite = (item: Organ) => {
+    const adding = !favorites.has(item.id);
+    const next = new Set(favorites);
+    if (adding) next.add(item.id);
+    else next.delete(item.id);
+    setFavorites(next);
+    try {
+      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
+    } catch {
+      // Ignore — favorites just won't persist this session.
+    }
+    toast.show(t(adding ? m.toasts.favoriteAdded : m.toasts.favoriteRemoved, { organ: item.name }), adding ? "success" : "info", 2400);
   };
 
   const filteredOrgans = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const system = activeSystem === null ? null : systems[activeSystem];
     return organs.filter((item) => {
       if (favoritesOnly && !favorites.has(item.id)) return false;
-      if (activeSystem && item.system !== activeSystem) return false;
+      if (system && item.system !== system) return false;
       return `${item.name} ${item.system} ${item.scientificName}`.toLowerCase().includes(needle);
     });
-  }, [query, activeSystem, favoritesOnly, favorites]);
+  }, [organs, systems, query, activeSystem, favoritesOnly, favorites]);
 
   // Organ switch: the info panel and learning cards re-enter in sequence.
   const firstSwitch = useRef(true);
@@ -194,14 +212,14 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
     media.add("(prefers-reduced-motion: no-preference)", () => {
       if (contentRef.current) {
         gsap.fromTo(contentRef.current.querySelectorAll("[data-reveal]"),
-          { opacity: 0, y: 10 },
-          { opacity: 1, y: 0, duration: 0.5, stagger: 0.035, ease: "power2.out", overwrite: true, clearProps: "transform" },
+          { opacity: 0, y: 12, filter: "blur(4px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.55, stagger: 0.035, ease: "power2.out", overwrite: true, clearProps: "transform,filter" },
         );
       }
       if (cardsRef.current) {
         gsap.fromTo(cardsRef.current.children,
-          { opacity: 0, y: 18 },
-          { opacity: 1, y: 0, duration: 0.55, stagger: 0.05, ease: "power3.out", overwrite: true, clearProps: "transform" },
+          { opacity: 0, y: 22, rotateX: -8 },
+          { opacity: 1, y: 0, rotateX: 0, duration: 0.6, stagger: 0.06, ease: "power3.out", overwrite: true, clearProps: "transform" },
         );
       }
     });
@@ -289,38 +307,40 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
   };
   const requestUpgrade = () => setOverlay("plans");
   const closeOverlay = () => setOverlay(null);
-  const currentPlan = planById[plan];
+  const organLower = organ.name.toLowerCase();
 
   return (
     <main className="app-shell">
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="Atlas Anatómico, página principal">
-          <BrandLockup />
+        <Link className="brand" href="/" aria-label={m.brand.home}>
+          <BrandLockup tagline={m.brand.tagline} />
         </Link>
-        <nav className="main-nav" aria-label="Navegación principal">
+        <nav className="main-nav" aria-label={m.nav.main}>
           <button className={overlay !== "encyclopedia" ? "active" : ""} type="button" onClick={goHome}>
-            <Compass size={17} /> <span>Explorar</span>
+            <Compass size={17} /> <span>{m.nav.explore}</span>
           </button>
           <button type="button" className={overlay === "encyclopedia" ? "active" : ""} onClick={() => openEncyclopedia()}>
-            <Library size={17} /> <span>Enciclopedia</span>
+            <Library size={17} /> <span>{m.nav.encyclopedia}</span>
           </button>
           <button type="button" className="plan-nav-button" onClick={() => setOverlay("plans")}>
-            <CreditCard size={17} /> <span>Planes</span>
+            <CreditCard size={17} /> <span>{m.nav.plans}</span>
           </button>
         </nav>
-        <button type="button" className="search-box" onClick={() => openEncyclopedia("articles")} aria-label="Buscar en la enciclopedia">
+        <button type="button" className="search-box" onClick={() => openEncyclopedia("articles")} aria-label={m.nav.search}>
           <Search size={17} />
-          <span>Buscar órganos, estructuras…</span>
+          <span>{m.nav.searchPlaceholder}</span>
           <kbd>⌘K</kbd>
         </button>
+        <LanguageSwitcher compact className="topbar-lang" />
         <div className="nav-dropdown account-dropdown" ref={accountRef}>
           <button
             type="button"
             className="profile"
-            aria-label="Cuenta"
+            aria-label={m.nav.account}
             aria-haspopup="menu"
             onClick={() => setAccountOpen((open) => !open)}
             aria-expanded={accountOpen}
+            data-testid="account-menu"
           >
             <span>{user ? initials(user.name) : <User size={16} />}</span>
             <ChevronDown size={15} className={accountOpen ? "chevron open" : "chevron"} />
@@ -332,33 +352,33 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
                   <div className="account-summary">
                     <b>{user.name}</b>
                     <small>{user.email}</small>
-                    <span className={`plan-badge ${plan}`}>Plan {currentPlan.name}</span>
+                    <span className={`plan-badge ${plan}`}>{t(m.accountMenu.planBadge, { name: planName })}</span>
                   </div>
                   <Link href="/dashboard" role="menuitem" className="dropdown-link">
-                    <LayoutDashboard size={15} /> Mi panel de estudio
+                    <LayoutDashboard size={15} /> {m.accountMenu.studyPanel}
                   </Link>
                   <button type="button" role="menuitem" onClick={() => { setOverlay("plans"); setAccountOpen(false); }}>
-                    <CreditCard size={15} /> {plan === "free" ? "Ver planes en MXN" : "Gestionar suscripción"}
+                    <CreditCard size={15} /> {plan === "free" ? m.accountMenu.viewPlans : m.accountMenu.manage}
                   </button>
-                  <button type="button" role="menuitem" onClick={signOut}>
-                    <LogOut size={15} /> Cerrar sesión
+                  <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); setConfirmLogout(true); }}>
+                    <LogOut size={15} /> {m.nav.logout}
                   </button>
                 </>
               ) : (
                 <>
                   <div className="account-summary">
-                    <b>Modo invitado</b>
-                    <small>Crea una cuenta para guardar tu progreso y ver tu panel de estudio.</small>
-                    <span className={`plan-badge ${plan}`}>Plan {currentPlan.name}</span>
+                    <b>{m.accountMenu.guestTitle}</b>
+                    <small>{m.accountMenu.guestText}</small>
+                    <span className={`plan-badge ${plan}`}>{t(m.accountMenu.planBadge, { name: planName })}</span>
                   </div>
                   <button type="button" role="menuitem" onClick={() => { setOverlay("plans"); setAccountOpen(false); }}>
-                    <CreditCard size={15} /> Ver planes en MXN
+                    <CreditCard size={15} /> {m.accountMenu.viewPlans}
                   </button>
                   <Link href="/registro?next=/atlas" role="menuitem" className="dropdown-link primary">
-                    <GraduationCap size={15} /> Crear cuenta gratis
+                    <GraduationCap size={15} /> {m.accountMenu.createFree}
                   </Link>
                   <Link href="/login?next=/atlas" role="menuitem" className="dropdown-link">
-                    <User size={15} /> Iniciar sesión
+                    <User size={15} /> {m.nav.login}
                   </Link>
                 </>
               )}
@@ -368,23 +388,19 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
       </header>
 
       <div className="workspace">
-        <aside
-          className={`organ-library ${mobileLibrary ? "open" : ""}`}
-          data-intro
-          aria-label="Biblioteca de órganos"
-        >
+        <aside className={`organ-library ${mobileLibrary ? "open" : ""}`} data-intro aria-label={m.library.title}>
           <div className="panel-heading">
-            <span>Biblioteca de órganos</span>
+            <span>{m.library.title}</span>
             <button
               type="button"
-              aria-label="Mostrar solo guardados"
+              aria-label={m.library.favoritesOnly}
               aria-pressed={favoritesOnly}
               className={favoritesOnly ? "active" : ""}
               onClick={() => setFavoritesOnly((value) => !value)}
             >
               <Star size={17} fill={favoritesOnly ? "currentColor" : "none"} />
             </button>
-            <button type="button" aria-label="Cerrar biblioteca" className="mobile-close" onClick={() => setMobileLibrary(false)}><X size={17} /></button>
+            <button type="button" aria-label={m.library.close} className="mobile-close" onClick={() => setMobileLibrary(false)}><X size={17} /></button>
           </div>
           <label className="library-search">
             <Search size={15} />
@@ -392,32 +408,30 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filtrar órganos…"
-              aria-label="Filtrar órganos"
+              placeholder={m.library.filter}
+              aria-label={m.library.filterLabel}
             />
           </label>
-          <div className="system-chips" role="group" aria-label="Filtrar por sistema">
-            <button type="button" className={!activeSystem ? "active" : ""} onClick={() => setActiveSystem(null)}>Todos</button>
-            {SYSTEMS.map((system) => (
+          <div className="system-chips" role="group" aria-label={m.library.systems}>
+            <button type="button" className={activeSystem === null ? "active" : ""} onClick={() => setActiveSystem(null)}>{m.library.all}</button>
+            {systems.map((system, index) => (
               <button
                 key={system}
                 type="button"
-                className={activeSystem === system ? "active" : ""}
-                onClick={() => setActiveSystem(activeSystem === system ? null : system)}
+                className={activeSystem === index ? "active" : ""}
+                onClick={() => setActiveSystem(activeSystem === index ? null : index)}
               >
                 {system}
               </button>
             ))}
           </div>
           <ul className="organ-list">
-            {filteredOrgans.length === 0 && (
-              <li className="empty-state">No se encontraron órganos con ese criterio.</li>
-            )}
-            {filteredOrgans.map((item) => (
+            {filteredOrgans.length === 0 && <li className="empty-state animate__animated animate__fadeIn">{m.library.empty}</li>}
+            {filteredOrgans.map((item, index) => (
               <li
                 key={item.id}
                 className={`organ-item ${organId === item.id ? "active" : ""}`}
-                style={{ "--item-accent": item.accent } as React.CSSProperties}
+                style={{ "--item-accent": item.accent, "--i": index } as React.CSSProperties}
               >
                 <button
                   type="button"
@@ -426,11 +440,12 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
                   onClick={() => selectOrgan(item.id)}
                   onPointerEnter={() => prefetchOrgan(item.id)}
                   onFocus={() => prefetchOrgan(item.id)}
+                  data-testid={`organ-${item.id}`}
                 >
                   <span className="organ-glyph">
                     <OrganArt organ={item} asset="thumb" alt="" size={47} />
                     {item.tier === "pro" && !fullAccess && (
-                      <span className="tier-badge" aria-label="Contenido Pro"><Lock size={11} /></span>
+                      <span className="tier-badge" aria-label={m.common.proContent}><Lock size={11} /></span>
                     )}
                   </span>
                   <span className="organ-text"><b>{item.name}</b><small>{item.system}</small></span>
@@ -438,9 +453,9 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
                 <button
                   type="button"
                   className={`favorite-toggle ${favorites.has(item.id) ? "active" : ""}`}
-                  aria-label={favorites.has(item.id) ? `Quitar ${item.name} de guardados` : `Guardar ${item.name}`}
+                  aria-label={t(favorites.has(item.id) ? m.library.unsave : m.library.save, { name: item.name })}
                   aria-pressed={favorites.has(item.id)}
-                  onClick={() => toggleFavorite(item.id)}
+                  onClick={() => toggleFavorite(item)}
                 >
                   <Star size={14} fill={favorites.has(item.id) ? "currentColor" : "none"} />
                 </button>
@@ -448,7 +463,7 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
             ))}
           </ul>
           <button type="button" className="view-all" onClick={() => openEncyclopedia("articles")}>
-            Abrir la enciclopedia <ArrowRight size={14} />
+            {m.library.openEncyclopedia} <ArrowRight size={14} />
           </button>
         </aside>
 
@@ -468,58 +483,58 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
           />
         </div>
 
-        <aside className="info-panel" ref={contentRef} data-intro aria-label={`Ficha de ${organ.name.toLowerCase()}`}>
+        <aside className="info-panel" ref={contentRef} data-intro aria-label={t(m.info.panel, { organ: organ.name })}>
           {locked ? (
             <ProPaywall organ={organ} onUpgrade={requestUpgrade} />
           ) : (
             <>
               <div className="info-lead">
-                <div className="info-kicker" data-reveal><Heart size={13} fill="currentColor" /> {organ.system}</div>
+                <div className="info-kicker" data-reveal><Heart size={13} fill="currentColor" className="kicker-heart" /> {organ.system}</div>
                 <div className="info-title-row" data-reveal>
                   <div><h1>{organ.name}</h1><em>{organ.poetic}</em></div>
                   <span className="specimen-stamp">
-                    <OrganArt organ={organ} asset="organ" alt={`Ilustración anatómica de ${organ.name.toLowerCase()}`} size={92} />
+                    <OrganArt organ={organ} asset="organ" alt={t(m.info.illustration, { organ: organLower })} size={92} />
                   </span>
                 </div>
                 <p className="description" data-reveal>{organ.description}</p>
                 <div className="info-cta-row" data-reveal>
-                  <button type="button" className="tour-cta" onClick={() => viewerHandle.current?.startTour()}>
-                    <Route size={15} /> Recorrido guiado
+                  <button type="button" className="tour-cta" onClick={() => viewerHandle.current?.startTour()} data-testid="tour-cta">
+                    <Route size={15} /> {m.viewer.tour}
                   </button>
                   <button type="button" className="ency-link" onClick={() => openEncyclopedia("articles")}>
-                    <BookOpen size={14} /> Artículo completo <ArrowRight size={13} />
+                    <BookOpen size={14} /> {m.info.fullArticle} <ArrowRight size={13} />
                   </button>
                 </div>
                 <section className="study-guide" data-reveal aria-labelledby="objectives-title">
-                  <h2 id="objectives-title"><Target size={13} /> Objetivos de aprendizaje</h2>
+                  <h2 id="objectives-title"><Target size={13} /> {m.info.objectives}</h2>
                   <ol>
-                    {studyGuides[organ.id].objectives.map((objective) => <li key={objective}>{objective}</li>)}
+                    {guide.objectives.map((objective) => <li key={objective}>{objective}</li>)}
                   </ol>
                 </section>
               </div>
               <div className="info-body">
-                <h2 data-reveal>Datos clave</h2>
+                <h2 data-reveal>{m.info.keyFacts}</h2>
                 <dl className="key-facts">
-                  <div data-reveal><dt><span>◇</span> Tamaño</dt><dd>{organ.size}</dd></div>
-                  <div data-reveal><dt><span>♙</span> Peso</dt><dd>{organ.weight}</dd></div>
-                  <div data-reveal><dt><span>⌁</span> Cada día</dt><dd>{organ.dailyFact}</dd></div>
-                  <div data-reveal><dt><span>⌖</span> Ubicación</dt><dd>{organ.location}</dd></div>
-                  <div data-reveal><dt><span>❋</span> Riego sanguíneo</dt><dd>{organ.bloodSupply}</dd></div>
-                  <div data-reveal><dt><span>◈</span> Función</dt><dd>{organ.function}</dd></div>
+                  <div data-reveal><dt><span>◇</span> {m.info.size}</dt><dd>{organ.size}</dd></div>
+                  <div data-reveal><dt><span>♙</span> {m.info.weight}</dt><dd>{organ.weight}</dd></div>
+                  <div data-reveal><dt><span>⌁</span> {m.info.daily}</dt><dd>{organ.dailyFact}</dd></div>
+                  <div data-reveal><dt><span>⌖</span> {m.info.location}</dt><dd>{organ.location}</dd></div>
+                  <div data-reveal><dt><span>❋</span> {m.info.bloodSupply}</dt><dd>{organ.bloodSupply}</dd></div>
+                  <div data-reveal><dt><span>◈</span> {m.info.function}</dt><dd>{organ.function}</dd></div>
                 </dl>
-                <div className="medical-note" data-reveal><Stethoscope size={16} /><p><b>Importancia médica</b>{organ.medical}</p></div>
+                <div className="medical-note" data-reveal><Stethoscope size={16} /><p><b>{m.info.medical}</b>{organ.medical}</p></div>
                 <section className="high-yield" data-reveal aria-labelledby="high-yield-title">
-                  <h2 id="high-yield-title"><Lightbulb size={13} /> Alto rendimiento</h2>
+                  <h2 id="high-yield-title"><Lightbulb size={13} /> {m.info.highYield}</h2>
                   <ul>
-                    {studyGuides[organ.id].highYield.map((point) => <li key={point}>{point}</li>)}
+                    {guide.highYield.map((point) => <li key={point}>{point}</li>)}
                   </ul>
                 </section>
-                <div className="fun-note" data-reveal><Sparkles size={15} /><p><b>¿Sabías que…?</b>{organ.funFact}</p></div>
-                <button type="button" className="lesson-button" data-reveal onClick={() => openLearning("lesson")}>Ver lección <ArrowRight size={16} /></button>
+                <div className="fun-note" data-reveal><Sparkles size={15} /><p><b>{m.info.didYouKnow}</b>{organ.funFact}</p></div>
+                <button type="button" className="lesson-button" data-reveal onClick={() => openLearning("lesson")}>{m.info.viewLesson} <ArrowRight size={16} /></button>
                 <div className="action-grid" data-reveal>
-                  <button type="button" onClick={() => openLearning("animation")}><Play size={15} /> Animar</button>
-                  <button type="button" onClick={() => openLearning("quiz")}><CircleHelp size={15} /> Cuestionario</button>
-                  <button type="button" onClick={() => setCompare(!compare)} className={compare ? "active" : ""} aria-pressed={compare}><Share2 size={15} /> Comparar</button>
+                  <button type="button" onClick={() => openLearning("animation")}><Play size={15} /> {m.info.animate}</button>
+                  <button type="button" onClick={() => openLearning("quiz")} data-testid="quiz-open"><CircleHelp size={15} /> {m.info.quiz}</button>
+                  <button type="button" onClick={() => setCompare(!compare)} className={compare ? "active" : ""} aria-pressed={compare}><Share2 size={15} /> {m.info.compare}</button>
                 </div>
               </div>
             </>
@@ -528,85 +543,85 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
       </div>
 
       {compare && !locked && (
-        <section className="compare-strip" aria-label="Comparación de órganos">
-          <div className="compare-organ"><OrganArt organ={organ} asset="thumb" alt="" /><span>Comparando</span><strong>{organ.name}</strong><small>{organ.system}</small></div>
+        <section className="compare-strip" aria-label={m.compare.region}>
+          <div className="compare-organ"><OrganArt organ={organ} asset="thumb" alt="" /><span>{m.compare.comparing}</span><strong>{organ.name}</strong><small>{organ.system}</small></div>
           <b>vs.</b>
-          <div className="compare-organ"><OrganArt organ={reference} asset="thumb" alt="" /><span>Referencia</span><strong>{reference.name}</strong><small>{reference.system}</small></div>
-          <dl><div><dt>Función principal</dt><dd>{organ.function}</dd></div><div><dt>Escala</dt><dd>{organ.size}</dd></div></dl>
-          <button type="button" onClick={() => setCompare(false)} aria-label="Cerrar comparación"><X size={16} /></button>
+          <div className="compare-organ"><OrganArt organ={reference} asset="thumb" alt="" /><span>{m.compare.reference}</span><strong>{reference.name}</strong><small>{reference.system}</small></div>
+          <dl><div><dt>{m.compare.mainFunction}</dt><dd>{organ.function}</dd></div><div><dt>{m.compare.scale}</dt><dd>{organ.size}</dd></div></dl>
+          <button type="button" onClick={() => setCompare(false)} aria-label={m.compare.close}><X size={16} /></button>
         </section>
       )}
 
       {locked ? (
-        <section className="learning-cards locked-cards" ref={cardsRef} data-intro aria-label={`Funciones Pro para ${organ.name}`}>
-          <ProFeatureTeaser icon={<Microscope size={18} />} label="Vista microscópica" />
-          <ProFeatureTeaser icon={<Share2 size={18} />} label="Comparativa de órganos" />
-          <ProFeatureTeaser icon={<Play size={18} />} label="Animación de función" />
-          <ProFeatureTeaser icon={<FileText size={18} />} label="Notas clínicas" />
-          <ProFeatureTeaser icon={<CircleHelp size={18} />} label="Cuestionario" />
+        <section className="learning-cards locked-cards" ref={cardsRef} data-intro aria-label={t(m.cards.proFeatures, { organ: organ.name })}>
+          <ProFeatureTeaser icon={<Microscope size={18} />} label={m.cards.microscopic} />
+          <ProFeatureTeaser icon={<Share2 size={18} />} label={m.cards.organComparison} />
+          <ProFeatureTeaser icon={<Play size={18} />} label={m.cards.functionAnimation} />
+          <ProFeatureTeaser icon={<FileText size={18} />} label={m.cards.clinicalNotes} />
+          <ProFeatureTeaser icon={<CircleHelp size={18} />} label={m.info.quiz} />
           <button type="button" className="pro-teaser-cta" onClick={requestUpgrade}>
-            <Lock size={16} /> Desbloquear desde $129 MXN/mes <ArrowRight size={14} />
+            <Lock size={16} /> {t(m.cards.unlockFrom, { price: STARTING_PRICE })} <ArrowRight size={14} />
           </button>
         </section>
       ) : (
-        <section className="learning-cards" ref={cardsRef} data-intro aria-label={`Recursos de aprendizaje de ${organ.name}`}>
+        <section className="learning-cards" ref={cardsRef} data-intro aria-label={t(m.cards.resources, { organ: organ.name })}>
           <article className="curiosity-card pearl-card">
             <span className="pearl-icon"><Stethoscope size={18} /></span>
-            <em>Perla clínica</em>
-            <p>{studyGuides[organ.id].pearl}</p>
+            <em>{m.cards.pearl}</em>
+            <p>{guide.pearl}</p>
             <button type="button" className="curiosity-cta" onClick={() => openEncyclopedia("flashcards")}>
-              Repasar con tarjetas <ArrowRight size={14} />
+              {m.cards.reviewCards} <ArrowRight size={14} />
             </button>
           </article>
           <article>
-            <header><div><em>Vista microscópica</em><h3>{organ.tissue}</h3></div><Microscope size={17} /></header>
-            <div className="microscope-visual organ-card-image"><OrganArt organ={organ} asset="microscopic" alt={`Vista microscópica de tejido de ${organ.name.toLowerCase()}`} /></div>
-            <button type="button" onClick={() => openLearning("lesson")}>Explorar tejido <ArrowRight size={14} /></button>
+            <header><div><em>{m.cards.microscopic}</em><h3>{organ.tissue}</h3></div><Microscope size={17} /></header>
+            <div className="microscope-visual organ-card-image"><OrganArt organ={organ} asset="microscopic" alt={t(m.cards.microscopicAlt, { organ: organLower })} /></div>
+            <button type="button" onClick={() => openLearning("lesson")}>{m.cards.exploreTissue} <ArrowRight size={14} /></button>
           </article>
           <article>
-            <header><div><em>Comparar órganos</em><h3>{organ.comparison}</h3></div><Share2 size={17} /></header>
-            <div className="comparison-visual organ-card-image"><OrganArt organ={organ} asset="compare" alt={`Comparación anatómica: ${organ.comparison.toLowerCase()}`} /></div>
-            <button type="button" onClick={() => setCompare(true)}>Abrir comparación <ArrowRight size={14} /></button>
+            <header><div><em>{m.cards.compareOrgans}</em><h3>{organ.comparison}</h3></div><Share2 size={17} /></header>
+            <div className="comparison-visual organ-card-image"><OrganArt organ={organ} asset="compare" alt={t(m.cards.compareAlt, { comparison: organ.comparison.toLowerCase() })} /></div>
+            <button type="button" onClick={() => setCompare(true)}>{m.cards.openCompare} <ArrowRight size={14} /></button>
           </article>
           <article>
-            <header><div><em>Animación de función</em><h3>{organ.function}</h3></div><Play size={17} /></header>
+            <header><div><em>{m.cards.functionAnimation}</em><h3>{organ.function}</h3></div><Play size={17} /></header>
             {/* The artwork itself is the control, so the play badge inside it is
                 decorative rather than a nested button. */}
             <button
               type="button"
               className="function-visual organ-card-image"
               onClick={() => openLearning("animation")}
-              aria-label={`Reproducir la animación de función de ${organ.name.toLowerCase()}`}
+              aria-label={t(m.cards.playAria, { organ: organLower })}
             >
               <OrganArt organ={organ} asset="organ" alt="" />
               <i className="function-pulse" />
               <span className="play-badge"><Play size={18} fill="currentColor" /></span>
             </button>
-            <button type="button" onClick={() => openLearning("animation")}>Reproducir animación <ArrowRight size={14} /></button>
+            <button type="button" onClick={() => openLearning("animation")}>{m.cards.playAnimation} <ArrowRight size={14} /></button>
           </article>
           <article>
-            <header><div><em>Notas clínicas</em><h3>Condiciones frecuentes</h3></div><FileText size={17} /></header>
+            <header><div><em>{m.cards.clinicalNotes}</em><h3>{m.cards.conditions}</h3></div><FileText size={17} /></header>
             <ul>{organ.conditions.map((condition) => <li key={condition}>{condition}</li>)}</ul>
-            <button type="button" onClick={() => openEncyclopedia("articles")}>Leer en la enciclopedia <ArrowRight size={14} /></button>
+            <button type="button" onClick={() => openEncyclopedia("articles")}>{m.cards.readEncyclopedia} <ArrowRight size={14} /></button>
           </article>
           <article className="system-card">
-            <header><div><em>Dónde actúa</em><h3>{organ.system}</h3></div><BrainCircuit size={17} /></header>
+            <header><div><em>{m.cards.whereActs}</em><h3>{organ.system}</h3></div><BrainCircuit size={17} /></header>
             <button
               type="button"
               className="system-visual organ-card-image"
               onClick={() => openLearning("system")}
-              aria-label={`Ver dónde se ubica ${organ.name.toLowerCase()} en el cuerpo`}
+              aria-label={t(m.cards.whereAria, { organ: organLower })}
             >
               <OrganArt organ={organ} asset="location" alt="" />
             </button>
-            <button type="button" onClick={() => openLearning("system")}>Ver el sistema <ArrowRight size={14} /></button>
+            <button type="button" onClick={() => openLearning("system")}>{m.cards.viewSystem} <ArrowRight size={14} /></button>
           </article>
         </section>
       )}
 
-      <nav className="mobile-tabbar" aria-label="Navegación móvil">
+      <nav className="mobile-tabbar" aria-label={m.nav.mobile}>
         <button type="button" className={!mobileLibrary && overlay === null ? "active" : ""} onClick={goHome}>
-          <Compass size={20} /><span>Explorar</span>
+          <Compass size={20} /><span>{m.nav.explore}</span>
         </button>
         <button
           type="button"
@@ -614,13 +629,13 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
           aria-expanded={mobileLibrary}
           onClick={() => { setOverlay(null); setMobileLibrary((open) => !open); }}
         >
-          <LayoutGrid size={20} /><span>Órganos</span>
+          <LayoutGrid size={20} /><span>{m.nav.organs}</span>
         </button>
         <button type="button" className={overlay === "encyclopedia" ? "active" : ""} onClick={() => openEncyclopedia()}>
-          <Library size={20} /><span>Enciclopedia</span>
+          <Library size={20} /><span>{m.nav.encyclopedia}</span>
         </button>
         <button type="button" className={overlay === "plans" ? "active" : ""} onClick={() => { setMobileLibrary(false); setOverlay("plans"); }}>
-          <CreditCard size={20} /><span>Planes</span>
+          <CreditCard size={20} /><span>{m.nav.plans}</span>
         </button>
       </nav>
 
@@ -629,7 +644,11 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
         type={learningType}
         organ={organ}
         onClose={closeOverlay}
-        onAnswer={(correct) => { if (user) trackStudy({ organId, kind: "quiz", correct }); }}
+        onAnswer={(correct) => {
+          if (user) trackStudy({ organId, kind: "quiz", correct });
+          if (correct) toast.success(t(m.toasts.quizCorrect, { organ: organ.name }));
+          else toast.info(m.toasts.quizIncorrect);
+        }}
       />
       <PlansDialog
         open={overlay === "plans"}
@@ -646,12 +665,21 @@ export function AnatomyApp({ user, initialOrganId = "heart", initialOverlay = nu
         onUpgrade={requestUpgrade}
         onViewIn3D={(id) => { selectOrgan(id); closeOverlay(); }}
       />
+      <ConfirmDialog
+        open={confirmLogout}
+        title={m.confirm.logoutTitle}
+        message={m.confirm.logoutText}
+        confirmLabel={m.confirm.logoutConfirm}
+        onConfirm={signOut}
+        onClose={() => setConfirmLogout(false)}
+        icon={<LogOut size={22} />}
+      />
       <button
         type="button"
         className={`drawer-backdrop ${mobileLibrary || accountOpen ? "visible" : ""}`}
         aria-hidden={!(mobileLibrary || accountOpen)}
         tabIndex={-1}
-        aria-label="Cerrar panel"
+        aria-label={m.nav.closePanel}
         onClick={() => { setMobileLibrary(false); setAccountOpen(false); }}
       />
     </main>
@@ -675,21 +703,20 @@ function ProFeatureTeaser({ icon, label }: { icon: React.ReactNode; label: strin
 }
 
 function ProPaywall({ organ, onUpgrade }: { organ: Organ; onUpgrade: () => void }) {
+  const { m, t } = useI18n();
   return (
     <div className="pro-paywall" data-reveal>
-      <span className="pro-paywall-icon"><Lock size={22} /></span>
-      <em>Contenido Pro</em>
+      <span className="pro-paywall-icon animate__animated animate__heartBeat"><Lock size={22} /></span>
+      <em>{m.common.proContent}</em>
       <h1>{organ.name}</h1>
       <p>{organ.description}</p>
       <ul>
-        <li><Check size={14} /> Datos clave y relevancia clínica completa</li>
-        <li><Check size={14} /> Artículo de enciclopedia y tarjetas de estudio</li>
-        <li><Check size={14} /> Cuestionarios, comparativas y animaciones</li>
+        {m.paywall.perks.map((perk) => <li key={perk}><Check size={14} /> {perk}</li>)}
       </ul>
       <button className="lesson-button" type="button" onClick={onUpgrade}>
-        Ver planes desde $129 MXN <ArrowRight size={16} />
+        {t(m.paywall.cta, { price: STARTING_PRICE })} <ArrowRight size={16} />
       </button>
-      <small>El modelo 3D y sus estructuras siguen disponibles para explorar libremente.</small>
+      <small>{m.paywall.note}</small>
     </div>
   );
 }
@@ -711,31 +738,28 @@ type LearningDialogProps = {
 
 function LearningDialog({ open, type, organ, onClose, onAnswer }: LearningDialogProps) {
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      labelledBy="modal-title"
-      variant={type === "system" ? "wide" : "center"}
-      className="learning-modal"
-    >
+    <Dialog open={open} onClose={onClose} labelledBy="modal-title" variant={type === "system" ? "wide" : "center"} className="learning-modal">
       <LearningContent type={type} organ={organ} onClose={onClose} onAnswer={onAnswer} />
     </Dialog>
   );
 }
 
 function LearningContent({ type, organ, onClose, onAnswer }: Omit<LearningDialogProps, "open">) {
+  const { m, t } = useI18n();
+  const l = m.learning;
   const [answer, setAnswer] = useState<number | null>(null);
-  const organName = organ.name;
-  const title =
-    type === "quiz" ? `Cuestionario rápido: ${organName.toLowerCase()}`
-    : type === "animation" ? `${organName} en movimiento`
-    : type === "system" ? `${organName} en el cuerpo`
-    : `Dentro del ${organName.toLowerCase()}`;
+  const titles: Record<LearningType, string> = {
+    quiz: l.quizTitle,
+    animation: l.animationTitle,
+    system: l.systemTitle,
+    lesson: l.lessonTitle,
+  };
+  const continueButton = <button type="button" className="lesson-button" onClick={onClose}>{l.continue} <ArrowRight size={16} /></button>;
   return (
     <>
-      <span className="modal-icon">{LEARNING_ICON[type]}</span>
-      <em>Descubrimiento guiado</em>
-      <h2 id="modal-title">{title}</h2>
+      <span className="modal-icon animate__animated animate__bounceIn">{LEARNING_ICON[type]}</span>
+      <em>{l.kicker}</em>
+      <h2 id="modal-title">{t(titles[type], { organ: organ.name })}</h2>
       {type === "quiz" ? (
         <div className="quiz-options">
           <p>{organ.quiz.question}</p>
@@ -745,11 +769,12 @@ function LearningContent({ type, organ, onClose, onAnswer }: Omit<LearningDialog
             const revealed = answer !== null;
             return (
               <button
-                key={option}
+                key={index}
                 type="button"
                 disabled={revealed}
                 className={revealed ? (isCorrect ? "correct" : isChosen ? "incorrect" : "") : ""}
-                onClick={() => { setAnswer(index); onAnswer(index === organ.quiz.correctIndex); }}
+                onClick={() => { setAnswer(index); onAnswer(isCorrect); }}
+                data-testid={`quiz-option-${index}`}
               >
                 {option}
                 {revealed && isCorrect && <Check size={15} />}
@@ -759,42 +784,40 @@ function LearningContent({ type, organ, onClose, onAnswer }: Omit<LearningDialog
           })}
           {answer !== null && (
             <p className={`quiz-feedback ${answer === organ.quiz.correctIndex ? "correct" : "incorrect"}`} role="status">
-              {answer === organ.quiz.correctIndex ? "¡Correcto! " : "No exactamente. "}
+              {answer === organ.quiz.correctIndex ? l.correct : l.incorrect}
               {organ.quiz.explanation}
             </p>
           )}
-          {answer !== null && (
-            <button type="button" className="lesson-button" onClick={onClose}>Continuar explorando <ArrowRight size={16} /></button>
-          )}
+          {answer !== null && continueButton}
         </div>
       ) : type === "system" ? (
         <>
-          <p>{organ.location}. Sigue cómo el {organName.toLowerCase()} se conecta con el resto del cuerpo.</p>
+          <p>{t(l.systemIntro, { location: organ.location })}</p>
           <figure className="modal-figure">
-            <OrganArt organ={organ} asset="location" alt={`${organName} ubicado dentro del ${organ.system.toLowerCase()}`} />
+            <OrganArt organ={organ} asset="location" alt={t(l.locatedAlt, { organ: organ.name, system: organ.system.toLowerCase() })} />
           </figure>
           <dl className="modal-facts">
-            <div><dt>Sistema</dt><dd>{organ.system}</dd></div>
-            <div><dt>Función principal</dt><dd>{organ.function}</dd></div>
-            <div><dt>Riego sanguíneo</dt><dd>{organ.bloodSupply}</dd></div>
+            <div><dt>{l.system}</dt><dd>{organ.system}</dd></div>
+            <div><dt>{l.mainFunction}</dt><dd>{organ.function}</dd></div>
+            <div><dt>{l.bloodSupply}</dt><dd>{organ.bloodSupply}</dd></div>
           </dl>
-          <button type="button" className="lesson-button" onClick={onClose}>Continuar explorando <ArrowRight size={16} /></button>
+          {continueButton}
         </>
       ) : type === "lesson" ? (
         <>
-          <p>Sigue las estructuras resaltadas, gira el espécimen y conecta la forma con la función. Este breve momento de estudio está diseñado para construir un modelo mental duradero.</p>
+          <p>{l.intro}</p>
           <dl className="modal-facts lesson-facts">
-            <div><dt>Tejido</dt><dd>{organ.tissue}</dd></div>
-            <div><dt>Relevancia clínica</dt><dd>{organ.medical}</dd></div>
-            <div><dt>Condiciones frecuentes</dt><dd>{organ.conditions.slice(0, 3).join(", ")}</dd></div>
+            <div><dt>{l.tissue}</dt><dd>{organ.tissue}</dd></div>
+            <div><dt>{l.clinicalRelevance}</dt><dd>{organ.medical}</dd></div>
+            <div><dt>{l.conditions}</dt><dd>{organ.conditions.slice(0, 3).join(", ")}</dd></div>
           </dl>
-          <button type="button" className="lesson-button" onClick={onClose}>Continuar explorando <ArrowRight size={16} /></button>
+          {continueButton}
         </>
       ) : (
         <>
-          <p>Sigue las estructuras resaltadas, gira el espécimen y conecta la forma con la función. Este breve momento de estudio está diseñado para construir un modelo mental duradero.</p>
-          <div className="modal-demo moving"><OrganArt organ={organ} asset="organ" alt={`Ilustración de ${organName.toLowerCase()}`} /></div>
-          <button type="button" className="lesson-button" onClick={onClose}>Continuar explorando <ArrowRight size={16} /></button>
+          <p>{l.intro}</p>
+          <div className="modal-demo moving"><OrganArt organ={organ} asset="organ" alt={t(l.illustrationAlt, { organ: organ.name.toLowerCase() })} /></div>
+          {continueButton}
         </>
       )}
     </>

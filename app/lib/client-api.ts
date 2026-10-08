@@ -1,5 +1,19 @@
 import type { OrganId } from "./anatomy-data";
 
+/**
+ * Mensajes de respaldo cuando la API no devuelve uno (red caída, respuesta no
+ * JSON). Se eligen por el `lang` del documento, que el cambio de idioma
+ * actualiza al instante, para no cargar el diccionario completo aquí.
+ */
+const FALLBACK = {
+  es: { generic: "No se pudo completar la solicitud.", offline: "Sin conexión. Revisa tu red e intenta de nuevo." },
+  en: { generic: "The request couldn't be completed.", offline: "You're offline. Check your connection and try again." },
+} as const;
+
+function fallback(): (typeof FALLBACK)[keyof typeof FALLBACK] {
+  return typeof document !== "undefined" && document.documentElement.lang.startsWith("en") ? FALLBACK.en : FALLBACK.es;
+}
+
 /** Respuesta normalizada de la API: nunca lanza por errores HTTP. */
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -19,11 +33,11 @@ export async function postJson<T>(url: string, body: unknown, init: RequestInit 
     return {
       ok: false,
       status: response.status,
-      error: typeof payload.error === "string" ? payload.error : "No se pudo completar la solicitud.",
+      error: typeof payload.error === "string" ? payload.error : fallback().generic,
       fields: (payload.fields as Record<string, string> | undefined) ?? undefined,
     };
   } catch {
-    return { ok: false, status: 0, error: "Sin conexión. Revisa tu red e intenta de nuevo." };
+    return { ok: false, status: 0, error: fallback().offline };
   }
 }
 

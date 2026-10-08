@@ -15,7 +15,9 @@ import {
 } from "../app/lib/server/auth-store.ts";
 import { hashPassword, verifyPassword } from "../app/lib/server/crypto.ts";
 import { aggregateStats, computeStreak, getDashboardStats, recordStudyEvent, VIEW_DEDUPE_MS } from "../app/lib/server/progress-store.ts";
-import { ROLE_OPTIONS, safeRedirectPath, validateRegistration } from "../app/lib/validation.ts";
+import { ROLE_IDS, safeRedirectPath, validateRegistration } from "../app/lib/validation.ts";
+import esMX from "../app/i18n/messages/es-MX.ts";
+import enUS from "../app/i18n/messages/en-US.ts";
 
 async function freshDb(): Promise<Database> {
   return connect(createClient({ url: ":memory:" }));
@@ -36,7 +38,8 @@ test("migrated DDL matches every column declared in the Drizzle schema", async (
 });
 
 test("role ids are shared between validation and schema", () => {
-  assert.deepEqual(ROLE_OPTIONS.map((option) => option.id), [...USER_ROLES]);
+  assert.deepEqual([...ROLE_IDS], [...USER_ROLES]);
+  for (const id of ROLE_IDS) assert.ok(esMX.roles[id] && enUS.roles[id], `role ${id} labelled`);
 });
 
 test("passwords are salted PBKDF2 hashes that verify only the original", async () => {
@@ -128,13 +131,14 @@ test("streak counts consecutive days ending today or yesterday", () => {
 });
 
 test("registration validation and redirect sanitising", () => {
-  const ok = validateRegistration({ ...ana, email: "  ANA@Hospital.MX ", terms: true });
+  const ok = validateRegistration({ ...ana, email: "  ANA@Hospital.MX ", terms: true }, esMX.validation);
   assert.ok(ok.ok);
   assert.equal(ok.data.email, "ana@hospital.mx");
 
-  const bad = validateRegistration({ name: "A", email: "x", password: "short", role: "admin", terms: false });
+  const bad = validateRegistration({ name: "A", email: "x", password: "short", role: "admin", terms: false }, enUS.validation);
   assert.equal(bad.ok, false);
   assert.deepEqual(Object.keys(!bad.ok ? bad.errors : {}).sort(), ["email", "name", "password", "role", "terms"]);
+  assert.equal(!bad.ok && bad.errors.password, "Use at least 10 characters.", "messages follow the requested locale");
 
   assert.equal(safeRedirectPath("/atlas?organ=heart"), "/atlas?organ=heart");
   for (const evil of ["//evil.com", "https://evil.com", "/\\evil.com", "javascript:alert(1)", null]) {

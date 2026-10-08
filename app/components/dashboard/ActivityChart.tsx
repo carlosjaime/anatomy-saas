@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useI18n } from "../../i18n/client";
 
 type Day = { day: string; count: number };
-
-const dayFormat = new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-const shortFormat = new Intl.DateTimeFormat("es-MX", { day: "numeric", timeZone: "UTC" });
 
 function label(day: string, format: Intl.DateTimeFormat) {
   return format.format(new Date(`${day}T12:00:00Z`));
@@ -17,6 +15,15 @@ function label(day: string, format: Intl.DateTimeFormat) {
  * y tabla equivalente para lectores de pantalla.
  */
 export function ActivityChart({ days }: { days: readonly Day[] }) {
+  const { locale, m, t } = useI18n();
+  const d = m.dashboard;
+  const { dayFormat, shortFormat } = useMemo(
+    () => ({
+      dayFormat: new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }),
+      shortFormat: new Intl.DateTimeFormat(locale, { day: "numeric", timeZone: "UTC" }),
+    }),
+    [locale],
+  );
   const [active, setActive] = useState<number | null>(null);
   const max = Math.max(4, ...days.map((entry) => entry.count));
   const total = days.reduce((sum, entry) => sum + entry.count, 0);
@@ -25,8 +32,8 @@ export function ActivityChart({ days }: { days: readonly Day[] }) {
   return (
     <figure className="activity-chart">
       <figcaption>
-        <span>Actividad de estudio · últimos {days.length} días</span>
-        <strong>{total} <small>eventos</small></strong>
+        <span>{t(d.activityTitle, { days: days.length })}</span>
+        <strong>{total} <small>{total === 1 ? d.event : d.events}</small></strong>
       </figcaption>
       <div className="chart-area" onMouseLeave={() => setActive(null)}>
         <div className="chart-gridlines" aria-hidden="true">
@@ -51,13 +58,13 @@ export function ActivityChart({ days }: { days: readonly Day[] }) {
         {current && (
           <div className="chart-tooltip" style={{ "--x": ((active ?? 0) + 0.5) / days.length } as React.CSSProperties}>
             <b>{label(current.day, dayFormat)}</b>
-            <span>{current.count} {current.count === 1 ? "evento" : "eventos"}</span>
+            <span>{current.count} {current.count === 1 ? d.event : d.events}</span>
           </div>
         )}
       </div>
       <table className="sr-only">
-        <caption>Eventos de estudio por día</caption>
-        <thead><tr><th scope="col">Día</th><th scope="col">Eventos</th></tr></thead>
+        <caption>{d.activityTable}</caption>
+        <thead><tr><th scope="col">{d.dayColumn}</th><th scope="col">{d.eventsColumn}</th></tr></thead>
         <tbody>
           {days.map((entry) => (
             <tr key={entry.day}><td>{label(entry.day, dayFormat)}</td><td>{entry.count}</td></tr>

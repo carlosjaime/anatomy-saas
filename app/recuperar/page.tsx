@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ForgotPasswordForm } from "../components/AccountForms";
 import { AuthLayout } from "../components/AuthLayout";
+import { getI18n } from "../i18n/server";
 
-export const metadata: Metadata = { title: "Recuperar contraseña — Atlas Anatómico" };
+export const dynamic = "force-dynamic";
 
-export default function ForgotPasswordPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).m.meta.forgot };
+}
+
+export default async function ForgotPasswordPage() {
+  const { m } = await getI18n();
   return (
-    <AuthLayout
-      title="Recupera tu acceso"
-      subtitle="Te enviaremos un enlace para crear una nueva contraseña."
-      footer={<>¿La recordaste? <Link href="/login">Inicia sesión</Link></>}
-    >
+    <AuthLayout m={m} title={m.auth.forgotTitle} subtitle={m.auth.forgotSubtitle} footer={<>{m.auth.remembered} <Link href="/login">{m.auth.signIn}</Link></>}>
       <ForgotPasswordForm />
     </AuthLayout>
   );

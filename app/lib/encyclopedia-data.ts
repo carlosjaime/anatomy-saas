@@ -320,7 +320,15 @@ function snippetAround(text: string, needle: string): string {
  * estructuras, condiciones y glosario. Insensible a mayúsculas y acentos.
  * Los resultados se ordenan por relevancia: título exacto, título, cuerpo.
  */
-export function searchEncyclopedia(query: string, organList: readonly SearchableOrgan[], limit = 40): SearchHit[] {
+/** Contenido sobre el que se busca, en el idioma activo. */
+export type SearchContent = {
+  organs: readonly SearchableOrgan[];
+  articles: Record<OrganId, Pick<OrganArticle, "sections">>;
+  sections: readonly { id: ArticleSectionId; title: string }[];
+  glossary: readonly GlossaryEntry[];
+};
+
+export function searchEncyclopedia(query: string, content: SearchContent, limit = 40): SearchHit[] {
   const needle = normalize(query);
   if (needle.length < 2) return [];
 
@@ -332,7 +340,7 @@ export function searchEncyclopedia(query: string, organList: readonly Searchable
     return normalized.includes(needle) ? 2 : 0;
   };
 
-  for (const organ of organList) {
+  for (const organ of content.organs) {
     const organTitle = titleScore(`${organ.name} ${organ.scientificName}`);
     const organBody = normalize(`${organ.system} ${organ.description}`).includes(needle) ? 1 : 0;
     if (organTitle || organBody) {
@@ -342,8 +350,8 @@ export function searchEncyclopedia(query: string, organList: readonly Searchable
       });
     }
 
-    const article = articles[organ.id];
-    for (const { id, title } of ARTICLE_SECTIONS) {
+    const article = content.articles[organ.id];
+    for (const { id, title } of content.sections) {
       const body = article.sections[id];
       if (normalize(body).includes(needle)) {
         scored.push({
@@ -367,14 +375,14 @@ export function searchEncyclopedia(query: string, organList: readonly Searchable
       const score = titleScore(condition);
       if (score) {
         scored.push({
-          hit: { kind: "condition", organId: organ.id, title: condition, snippet: `Condición frecuente · ${organ.name}` },
+          hit: { kind: "condition", organId: organ.id, title: condition, snippet: organ.name },
           score: score - 0.25,
         });
       }
     }
   }
 
-  for (const entry of glossary) {
+  for (const entry of content.glossary) {
     const score = titleScore(entry.term) || (normalize(entry.definition).includes(needle) ? 0.75 : 0);
     if (score) {
       scored.push({

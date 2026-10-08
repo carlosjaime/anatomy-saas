@@ -14,12 +14,18 @@ import type { BillingProvider, RemoteSubscription } from "./provider";
  * otorga un plan sin confirmación del proveedor.
  */
 
+export type BillingErrorCode =
+  | "not_configured"
+  | "email_unverified"
+  | "invalid_plan"
+  | "invalid_cycle"
+  | "already_subscribed"
+  | "no_subscription";
+
+/** Error de negocio identificado por código; la capa HTTP elige el texto según el idioma. */
 export class BillingError extends Error {
-  constructor(
-    readonly code: "not_configured" | "email_unverified" | "invalid_plan" | "already_subscribed" | "no_subscription",
-    message: string,
-  ) {
-    super(message);
+  constructor(readonly code: BillingErrorCode) {
+    super(`billing:${code}`);
     this.name = "BillingError";
   }
 }
@@ -57,15 +63,15 @@ export async function startCheckout(
   backUrl: string,
   now = Date.now(),
 ): Promise<CheckoutResult> {
-  if (!isPlanId(plan) || plan === "free") throw new BillingError("invalid_plan", "Plan no válido.");
-  if (cycle !== "monthly" && cycle !== "annual") throw new BillingError("invalid_plan", "Ciclo de facturación no válido.");
+  if (!isPlanId(plan) || plan === "free") throw new BillingError("invalid_plan");
+  if (cycle !== "monthly" && cycle !== "annual") throw new BillingError("invalid_cycle");
   if (!user.emailVerified) {
-    throw new BillingError("email_unverified", "Confirma tu correo antes de suscribirte. Revisa tu bandeja de entrada.");
+    throw new BillingError("email_unverified");
   }
 
   const owned = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id));
   if (owned.some((row) => row.status === "authorized" && row.plan === plan && row.cycle === cycle)) {
-    throw new BillingError("already_subscribed", "Ya tienes este plan activo.");
+    throw new BillingError("already_subscribed");
   }
 
   const trialDays = user.trialAvailable ? TRIAL_DAYS : 0;
@@ -202,10 +208,10 @@ export async function cancelActiveSubscription(db: Database, provider: BillingPr
     .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "authorized")))
     .orderBy(desc(subscriptions.updatedAt))
     .get();
-  if (!active) throw new BillingError("no_subscription", "No tienes una suscripción activa.");
+  if (!active) throw new BillingError("no_subscription");
   const remote = await provider.cancelSubscription(active.id);
   const updated = await applyRemoteState(db, provider, remote, now);
-  if (!updated) throw new BillingError("no_subscription", "No se pudo actualizar la suscripción.");
+  if (!updated) throw new BillingError("no_subscription");
   return updated;
 }
 

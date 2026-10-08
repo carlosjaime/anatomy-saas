@@ -22,13 +22,11 @@ export type Feature =
 
 export type Plan = {
   id: PlanId;
+  /** Nombre canónico (es-MX) para conceptos de cobro; la UI usa el diccionario. */
   name: string;
-  tagline: string;
   /** Precio mensual en MXN con IVA incluido. */
   monthlyPrice: number;
   features: readonly Feature[];
-  /** Beneficios mostrados en la tarjeta de precios. */
-  perks: readonly string[];
   highlight?: boolean;
   seats: number;
 };
@@ -40,59 +38,31 @@ export const PLANS: readonly Plan[] = [
   {
     id: "free",
     name: "Gratis",
-    tagline: "Para empezar a explorar",
     monthlyPrice: 0,
     features: [],
     seats: 1,
-    perks: [
-      "Visor 3D interactivo de los 9 órganos",
-      "Ficha clínica de 4 órganos",
-      "Glosario anatómico completo",
-      "Tarjetas de estudio de órganos gratuitos",
-    ],
   },
   {
     id: "student",
     name: "Estudiante",
-    tagline: "Para la carrera de medicina",
     monthlyPrice: 129,
     features: ["allOrgans", "fullEncyclopedia", "allFlashcards"],
     seats: 1,
-    perks: [
-      "Los 9 órganos sin restricciones",
-      "Enciclopedia completa: anatomía, histología y embriología",
-      "Todas las tarjetas de estudio y cuestionarios",
-      "Comparativas y animaciones de función",
-    ],
   },
   {
     id: "pro",
     name: "Profesional",
-    tagline: "Para residentes y clínicos",
     monthlyPrice: 249,
     features: ["allOrgans", "fullEncyclopedia", "allFlashcards", "clinicalCorrelation"],
     highlight: true,
     seats: 1,
-    perks: [
-      "Todo lo del plan Estudiante",
-      "Correlación clínica en cada artículo",
-      "Semiología, estudios y abordaje diagnóstico",
-      "Soporte prioritario",
-    ],
   },
   {
     id: "institution",
     name: "Institucional",
-    tagline: "Para universidades y hospitales",
     monthlyPrice: 1999,
     features: ["allOrgans", "fullEncyclopedia", "allFlashcards", "clinicalCorrelation"],
     seats: 25,
-    perks: [
-      "Todo lo del plan Profesional",
-      "Hasta 25 licencias incluidas",
-      "Facturación institucional",
-      "Acompañamiento para docentes",
-    ],
   },
 ];
 

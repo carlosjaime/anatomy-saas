@@ -6,18 +6,18 @@ import { consumeEmailToken } from "../../../../lib/server/email-tokens";
 import { HttpError, assertSameOrigin, handle, json, readJson, sessionCookie } from "../../../../lib/server/http";
 import { validatePassword } from "../../../../lib/validation";
 
-export const POST = handle(async (request) => {
-  assertSameOrigin(request);
-  const body = await readJson(request);
+export const POST = handle(async (request, m) => {
+  assertSameOrigin(request, m);
+  const body = await readJson(request, m);
   const password = typeof body.password === "string" ? body.password : "";
-  const passwordError = validatePassword(password);
+  const passwordError = validatePassword(password, m.validation);
   if (passwordError) throw new HttpError(422, passwordError, { password: passwordError });
 
   const db = await getDb();
   const userId = await consumeEmailToken(db, typeof body.token === "string" ? body.token : "", "reset");
-  if (!userId) throw new HttpError(400, "El enlace no es válido o ya expiró. Solicita uno nuevo.");
+  if (!userId) throw new HttpError(400, m.errors.resetInvalid);
   const row = await getUserById(db, userId);
-  if (!row) throw new HttpError(400, "El enlace no es válido o ya expiró. Solicita uno nuevo.");
+  if (!row) throw new HttpError(400, m.errors.resetInvalid);
 
   await setPassword(db, userId, password);
   // Cualquier sesión abierta con la contraseña anterior deja de ser válida.

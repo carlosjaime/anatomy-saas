@@ -2,8 +2,8 @@ import { DatabaseUnavailableError, getDb } from "../../../../db";
 import { revokeSession } from "../../../lib/server/auth-store";
 import { assertSameOrigin, clearSessionCookie, handle, json, readSessionToken } from "../../../lib/server/http";
 
-export const POST = handle(async (request) => {
-  assertSameOrigin(request);
+export const POST = handle(async (request, m) => {
+  assertSameOrigin(request, m);
   const token = readSessionToken(request);
   if (token) {
     try {

@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 import type { Hotspot, Organ } from "../lib/anatomy-data";
 import { MOTION_BY_ORGAN } from "../lib/three/motion";
+import { useI18n } from "../i18n/client";
+import { useAtlasContent } from "./atlas/AtlasContent";
+import { useToast } from "./ui/Toast";
 import type { AnatomyViewer } from "../lib/three/viewer";
 
 /** Time each tour step stays on screen while autoplay is on. */
@@ -71,7 +74,11 @@ export function OrganViewer({
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [tour, setTour] = useState<Tour | null>(null);
   const [tourOrganId, setTourOrganId] = useState(organ.id);
-  const motion = MOTION_BY_ORGAN[organ.id];
+  const { m, t } = useI18n();
+  const toast = useToast();
+  const v = m.viewer;
+  const motion = useAtlasContent().motion[organ.id];
+  const canvasLabelRef = useRef(v.canvas);
 
   // A tour belongs to the organ it started on; switching organs ends it.
   // Derived during render rather than in an effect (React's recommended
@@ -120,6 +127,7 @@ export function OrganViewer({
       viewer.setAutoRotate(autoRotateRef.current);
       viewer.setPhysiology(physiologyRef.current);
       const current = organRef.current;
+      viewer.setLabel(canvasLabelRef.current);
       viewer.setOrgan(current.model, current.hotspots, current.accent, MOTION_BY_ORGAN[current.id].profile).catch(() => {
         setLoading(false);
         setProgress(0);
@@ -133,12 +141,20 @@ export function OrganViewer({
     };
   }, []);
 
+  // Solo un cambio de órgano recarga el modelo; un cambio de idioma reemplaza
+  // el objeto `organ` pero conserva la geometría, así que no se vuelve a cargar.
   useEffect(() => {
-    viewerRef.current?.setOrgan(organ.model, organ.hotspots, organ.accent, MOTION_BY_ORGAN[organ.id].profile).catch(() => {
+    const current = organRef.current;
+    viewerRef.current?.setOrgan(current.model, current.hotspots, current.accent, MOTION_BY_ORGAN[current.id].profile).catch(() => {
       setLoading(false);
       setProgress(0);
     });
-  }, [organ]);
+  }, [organ.id]);
+
+  useEffect(() => {
+    canvasLabelRef.current = v.canvas;
+    viewerRef.current?.setLabel(v.canvas);
+  }, [v.canvas]);
 
   useEffect(() => viewerRef.current?.setAutoRotate(autoRotate), [autoRotate]);
   useEffect(() => viewerRef.current?.setPhysiology(physiology), [physiology]);
@@ -164,7 +180,8 @@ export function OrganViewer({
     setTour(null);
     viewerRef.current?.reset();
     onTourComplete();
-  }, [onTourComplete]);
+    toast.success(t(m.toasts.tourDone, { organ: organRef.current.name }));
+  }, [onTourComplete, toast, t, m.toasts.tourDone]);
 
   const goToStep = useCallback((next: number) => {
     if (next >= organRef.current.hotspots.length) {
@@ -218,24 +235,26 @@ export function OrganViewer({
   };
 
   const tools = [
-    { id: "rotate", label: "Rotar", icon: RotateCcw, pressed: autoRotate },
-    { id: "zoom", label: "Acercar", icon: Search, pressed: false },
-    { id: "isolate", label: "Aislar", icon: CircleDashed, pressed: activeTool === "isolate" },
-    { id: "section", label: "Corte", icon: ScanLine, pressed: activeTool === "section" },
-    { id: "layers", label: "Malla", icon: Layers3, pressed: activeTool === "layers" },
-    { id: "compare", label: "Comparar", icon: locked ? Lock : Box, pressed: compare },
-    { id: "reset", label: "Reiniciar", icon: RotateCcw, pressed: false },
+    { id: "rotate", label: v.rotate, icon: RotateCcw, pressed: autoRotate },
+    { id: "zoom", label: v.zoom, icon: Search, pressed: false },
+    { id: "isolate", label: v.isolate, icon: CircleDashed, pressed: activeTool === "isolate" },
+    { id: "section", label: v.section, icon: ScanLine, pressed: activeTool === "section" },
+    { id: "layers", label: v.mesh, icon: Layers3, pressed: activeTool === "layers" },
+    { id: "compare", label: v.compare, icon: locked ? Lock : Box, pressed: compare },
+    { id: "reset", label: v.reset, icon: RotateCcw, pressed: false },
   ];
 
   const currentStop = tour ? organ.hotspots[tour.step] : null;
+  // El visor conserva el hotspot original; el texto se toma del idioma activo.
+  const selectedText = selected ? organ.hotspots.find((hotspot) => hotspot.id === selected.id) ?? selected : null;
 
   return (
-    <section className={`viewer-shell ${tour ? "touring" : ""}`} aria-label={`Visor interactivo de ${organ.name.toLowerCase()}`}>
+    <section className={`viewer-shell ${tour ? "touring" : ""}`} aria-label={t(v.region, { organ: organ.name })}>
       <div className="viewer-glow" style={{ "--organ-accent": organ.accent } as React.CSSProperties} />
       <div className="viewer-grid" aria-hidden="true" />
       <div ref={mountRef} className="three-mount" />
 
-      <div className="viewer-tools" role="toolbar" aria-label="Herramientas del visor 3D">
+      <div className="viewer-tools" role="toolbar" aria-label={v.toolbar}>
         {tools.map(({ id, label, icon: Icon, pressed }) => (
           <button
             key={id}
@@ -253,7 +272,7 @@ export function OrganViewer({
 
       <div className="viewer-actions">
         <button type="button" className="tour-launch" onClick={tour ? exitTour : startTour} aria-pressed={Boolean(tour)}>
-          <Route size={15} /> {tour ? "Salir del recorrido" : "Recorrido guiado"}
+          <Route size={15} /> {tour ? v.exitTour : v.tour}
         </button>
         <button
           type="button"
@@ -268,30 +287,30 @@ export function OrganViewer({
       </div>
 
       {!tour && (
-        <aside className="tip-note" aria-label="Controles del visor">
-          <span><MousePointerClick size={14} /> Controles</span>
+        <aside className="tip-note" aria-label={v.controlsLabel}>
+          <span><MousePointerClick size={14} /> {v.controls}</span>
           <ul>
-            <li><kbd>Arrastrar</kbd> rotar</li>
-            <li><kbd>Rueda</kbd> / <kbd>pellizco</kbd> zoom</li>
-            <li><kbd>Clic</kbd> en un punto: estructura</li>
+            <li><kbd>{v.drag}</kbd> {v.dragAction}</li>
+            <li><kbd>{v.wheel}</kbd> / <kbd>{v.pinch}</kbd> {v.zoomAction}</li>
+            <li><kbd>{v.click}</kbd> {v.clickAction}</li>
           </ul>
         </aside>
       )}
 
-      {selected && (
+      {selectedText && (
         <div className="hotspot-callout" ref={calloutRef} data-side="right">
-          <div className="callout-body" style={{ "--hotspot-color": selected.color } as React.CSSProperties}>
-            <button className="callout-close" type="button" onClick={() => viewerRef.current?.clearSelection()} aria-label="Cerrar">
+          <div className="callout-body" style={{ "--hotspot-color": selectedText.color } as React.CSSProperties}>
+            <button className="callout-close" type="button" onClick={() => viewerRef.current?.clearSelection()} aria-label={m.common.close}>
               <X size={13} />
             </button>
-            <b>{selected.label}</b>
-            <small>{selected.detail}</small>
+            <b>{selectedText.label}</b>
+            <small>{selectedText.detail}</small>
           </div>
         </div>
       )}
 
       {tour && currentStop && (
-        <div className="tour-panel" role="region" aria-label="Recorrido guiado" aria-live="polite">
+        <div className="tour-panel" role="region" aria-label={v.tourRegion} aria-live="polite">
           <div className="tour-progress" aria-hidden="true">
             {organ.hotspots.map((hotspot, index) => (
               <i
@@ -302,25 +321,25 @@ export function OrganViewer({
             ))}
           </div>
           <div className="tour-body" key={currentStop.id}>
-            <span className="tour-step">Estructura {tour.step + 1} de {organ.hotspots.length}</span>
+            <span className="tour-step">{t(v.step, { n: tour.step + 1, total: organ.hotspots.length })}</span>
             <strong style={{ "--hotspot-color": currentStop.color } as React.CSSProperties}>{currentStop.label}</strong>
             <p>{currentStop.detail}.</p>
           </div>
           <div className="tour-controls">
-            <button type="button" onClick={() => goToStep(tour.step - 1)} disabled={tour.step === 0} aria-label="Estructura anterior">
+            <button type="button" onClick={() => goToStep(tour.step - 1)} disabled={tour.step === 0} aria-label={v.previous}>
               <ArrowLeft size={16} />
             </button>
             <button
               type="button"
               onClick={() => setTour({ ...tour, playing: !tour.playing })}
-              aria-label={tour.playing ? "Pausar recorrido" : "Reproducir recorrido"}
+              aria-label={tour.playing ? v.pause : v.play}
             >
               {tour.playing ? <Pause size={16} /> : <Play size={16} />}
             </button>
             <button type="button" className="primary" onClick={() => goToStep(tour.step + 1)}>
-              {tour.step === organ.hotspots.length - 1 ? "Finalizar" : "Siguiente"} <ArrowRight size={15} />
+              {tour.step === organ.hotspots.length - 1 ? v.finish : v.next} <ArrowRight size={15} />
             </button>
-            <button type="button" onClick={exitTour} aria-label="Salir del recorrido"><X size={16} /></button>
+            <button type="button" onClick={exitTour} aria-label={v.exitTour}><X size={16} /></button>
           </div>
         </div>
       )}
@@ -335,7 +354,7 @@ export function OrganViewer({
       {loading && slowLoad && (
         <div className="model-loader" role="status" aria-live="polite">
           <div className="loader-orbit"><Maximize2 size={20} /></div>
-          <strong>Preparando {organ.name.toLowerCase()}</strong>
+          <strong>{t(v.preparing, { organ: organ.name })}</strong>
           <span className="loader-bar"><i style={{ transform: `scaleX(${Math.max(0.08, progress)})` }} /></span>
           <span>{Math.max(8, Math.round(progress * 100))}%</span>
         </div>
@@ -343,7 +362,7 @@ export function OrganViewer({
 
       {!tour && (
         <div className="view-caption">
-          <span>Espécimen 3D · {organ.hotspots.length} estructuras</span>
+          <span>{t(v.caption, { count: organ.hotspots.length })}</span>
           <strong>{organ.scientificName}</strong>
         </div>
       )}

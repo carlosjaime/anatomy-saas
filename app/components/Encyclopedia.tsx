@@ -15,11 +15,11 @@ import {
 } from "lucide-react";
 import { Dialog } from "./Dialog";
 import { Flashcards } from "./Flashcards";
-import { organById, organs, type Organ, type OrganId } from "../lib/anatomy-data";
+import type { Organ, OrganId } from "../lib/anatomy-data";
+import { LanguageSwitcher } from "./ui/LanguageSwitcher";
+import { useI18n } from "../i18n/client";
+import { useAtlasContent } from "./atlas/AtlasContent";
 import {
-  ARTICLE_SECTIONS,
-  articles,
-  glossary,
   indexLetter,
   normalize,
   searchEncyclopedia,
@@ -31,19 +31,11 @@ import { hasFeature, type PlanId } from "../lib/plans";
 
 export type EncyclopediaTab = "articles" | "glossary" | "flashcards";
 
-const TABS: readonly { id: EncyclopediaTab; label: string; icon: typeof Library }[] = [
-  { id: "articles", label: "Artículos", icon: Library },
-  { id: "glossary", label: "Glosario", icon: BookMarked },
-  { id: "flashcards", label: "Tarjetas", icon: Layers },
+const TABS: readonly { id: EncyclopediaTab; icon: typeof Library }[] = [
+  { id: "articles", icon: Library },
+  { id: "glossary", icon: BookMarked },
+  { id: "flashcards", icon: Layers },
 ];
-
-const HIT_LABEL: Record<SearchHit["kind"], string> = {
-  organ: "Órgano",
-  section: "Artículo",
-  structure: "Estructura",
-  condition: "Condición",
-  term: "Glosario",
-};
 
 type Props = {
   open: boolean;
@@ -88,8 +80,11 @@ function EncyclopediaContent({ initialOrganId, initialTab, plan, onClose, onView
   const [query, setQuery] = useState("");
   const [pendingSection, setPendingSection] = useState<ArticleSectionId | null>(null);
   const deferredQuery = useDeferredValue(query);
+  const { m } = useI18n();
+  const e = m.encyclopedia;
+  const content = useAtlasContent();
 
-  const hits = useMemo(() => searchEncyclopedia(deferredQuery, organs), [deferredQuery]);
+  const hits = useMemo(() => searchEncyclopedia(deferredQuery, content), [deferredQuery, content]);
   const searching = tab === "articles" && normalize(deferredQuery).length >= 2;
 
   const openArticle = useCallback((id: OrganId, section: ArticleSectionId | null = null) => {
@@ -114,12 +109,12 @@ function EncyclopediaContent({ initialOrganId, initialTab, plan, onClose, onView
         <div className="ency-title">
           <span className="ency-mark" aria-hidden="true"><Library size={18} /></span>
           <div>
-            <em>Atlas Anatómico</em>
-            <h2 id="ency-title">Enciclopedia</h2>
+            <em>{m.brand.name}</em>
+            <h2 id="ency-title">{e.title}</h2>
           </div>
         </div>
-        <div className="ency-tabs" role="tablist" aria-label="Secciones de la enciclopedia" data-active={tab}>
-          {TABS.map(({ id, label, icon: Icon }) => (
+        <div className="ency-tabs" role="tablist" aria-label={e.tabs} data-active={tab}>
+          {TABS.map(({ id, icon: Icon }) => (
             <button
               key={id}
               type="button"
@@ -129,7 +124,7 @@ function EncyclopediaContent({ initialOrganId, initialTab, plan, onClose, onView
               aria-controls={`ency-panel-${id}`}
               onClick={() => setTab(id)}
             >
-              <Icon size={15} /> <span>{label}</span>
+              <Icon size={15} /> <span>{e[id]}</span>
             </button>
           ))}
         </div>
@@ -140,17 +135,20 @@ function EncyclopediaContent({ initialOrganId, initialTab, plan, onClose, onView
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={tab === "glossary" ? "Filtrar términos…" : "Buscar órganos, estructuras, enfermedades…"}
-              aria-label="Buscar en la enciclopedia"
+              placeholder={tab === "glossary" ? e.searchGlossary : e.searchArticles}
+              aria-label={e.searchLabel}
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label="Limpiar búsqueda"><X size={14} /></button>
+              <button type="button" onClick={() => setQuery("")} aria-label={e.clear}><X size={14} /></button>
             )}
           </label>
         )}
-        <button className="modal-close ency-close" type="button" onClick={onClose} aria-label="Cerrar enciclopedia">
-          <X size={18} />
-        </button>
+        <div className="ency-actions">
+          <LanguageSwitcher compact />
+          <button className="modal-close ency-close" type="button" onClick={onClose} aria-label={e.close}>
+            <X size={18} />
+          </button>
+        </div>
       </header>
 
       <div
@@ -185,17 +183,20 @@ function EncyclopediaContent({ initialOrganId, initialTab, plan, onClose, onView
 }
 
 function SearchResults({ hits, query, onOpen }: { hits: SearchHit[]; query: string; onOpen: (hit: SearchHit) => void }) {
+  const { m, t } = useI18n();
+  const e = m.encyclopedia;
+  const { organById } = useAtlasContent();
   if (hits.length === 0) {
     return (
-      <div className="ency-empty">
+      <div className="ency-empty animate__animated animate__fadeIn">
         <Search size={22} />
-        <p>Sin resultados para «{query}». Prueba con otro término, como «nefrona» o «válvula».</p>
+        <p>{t(e.noResults, { query })}</p>
       </div>
     );
   }
   return (
     <div className="search-results">
-      <p className="results-count" aria-live="polite">{hits.length} resultados</p>
+      <p className="results-count" aria-live="polite">{t(e.results, { count: hits.length })}</p>
       <ul>
         {hits.map((hit, index) => {
           const organ = hit.organId ? organById[hit.organId] : null;
@@ -203,10 +204,10 @@ function SearchResults({ hits, query, onOpen }: { hits: SearchHit[]; query: stri
             <li key={`${hit.kind}-${hit.title}-${index}`} style={{ "--i": Math.min(index, 12) } as React.CSSProperties}>
               <button type="button" onClick={() => onOpen(hit)}>
                 <span className="hit-kind" style={organ ? ({ "--hit-accent": organ.accent } as React.CSSProperties) : undefined}>
-                  {HIT_LABEL[hit.kind]}
+                  {e.kinds[hit.kind]}
                 </span>
                 <strong><Highlight text={hit.title} query={query} /></strong>
-                <small><Highlight text={hit.snippet} query={query} /></small>
+                <small><Highlight text={hit.kind === "condition" ? t(e.conditionHint, { organ: hit.snippet }) : hit.snippet} query={query} /></small>
                 <ArrowRight size={15} className="hit-arrow" />
               </button>
             </li>
@@ -257,6 +258,9 @@ type ArticlesViewProps = {
 };
 
 function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSelect, onViewIn3D, onUpgrade }: ArticlesViewProps) {
+  const { m, t } = useI18n();
+  const e = m.encyclopedia;
+  const { organs, organById, articles, sections } = useAtlasContent();
   const organ = organById[articleId];
   const article = articles[articleId];
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -336,7 +340,7 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
 
   return (
     <div className="articles-layout">
-      <nav className="article-nav" aria-label="Artículos de órganos">
+      <nav className="article-nav" aria-label={e.organNav}>
         {organs.map((item) => (
           <button
             key={item.id}
@@ -348,7 +352,7 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
           >
             <span className="nav-dot" aria-hidden="true">{item.icon}</span>
             <span>{item.name}</span>
-            {item.tier === "pro" && !hasFeature(plan, "fullEncyclopedia") && <Lock size={11} aria-label="Contenido Pro" />}
+            {item.tier === "pro" && !hasFeature(plan, "fullEncyclopedia") && <Lock size={11} aria-label={m.common.proContent} />}
           </button>
         ))}
       </nav>
@@ -358,28 +362,28 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
         <article className="article" style={{ "--organ-accent": organ.accent } as React.CSSProperties}>
           <header className="article-hero" data-ency-reveal>
             <div className="article-hero-art">
-              <img src={`/anatomy/${organ.id}/organ.webp`} alt={`Ilustración anatómica de ${organ.name.toLowerCase()}`} width={140} height={140} loading="lazy" decoding="async" />
+              <img src={`/anatomy/${organ.id}/organ.webp`} alt={t(m.info.illustration, { organ: organ.name.toLowerCase() })} width={140} height={140} loading="lazy" decoding="async" />
             </div>
             <div>
               <span className="article-system">{organ.system}</span>
               <h3>{organ.name} <i>{organ.scientificName}</i></h3>
               <p className="article-lead">{organ.description}</p>
-              <p className="article-etymology"><b>Etimología.</b> {article.etymology}</p>
+              <p className="article-etymology"><b>{e.etymology}</b> {article.etymology}</p>
               <button type="button" className="view-3d" onClick={() => onViewIn3D(organ.id)}>
-                <Box size={15} /> Ver en 3D
+                <Box size={15} /> {e.viewIn3D}
               </button>
             </div>
           </header>
 
           <dl className="article-facts" data-ency-reveal>
-            <div><dt>Tamaño</dt><dd>{organ.size}</dd></div>
-            <div><dt>Peso</dt><dd>{organ.weight}</dd></div>
-            <div><dt>Ubicación</dt><dd>{organ.location}</dd></div>
-            <div><dt>Irrigación</dt><dd>{organ.bloodSupply}</dd></div>
+            <div><dt>{e.size}</dt><dd>{organ.size}</dd></div>
+            <div><dt>{e.weight}</dt><dd>{organ.weight}</dd></div>
+            <div><dt>{e.location}</dt><dd>{organ.location}</dd></div>
+            <div><dt>{e.bloodSupply}</dt><dd>{organ.bloodSupply}</dd></div>
           </dl>
 
-          <nav className="article-toc" aria-label="Índice del artículo" data-ency-reveal>
-            {ARTICLE_SECTIONS.map(({ id, title }) => (
+          <nav className="article-toc" aria-label={e.toc} data-ency-reveal>
+            {sections.map(({ id, title }) => (
               <button
                 key={id}
                 type="button"
@@ -393,7 +397,7 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
             ))}
           </nav>
 
-          {ARTICLE_SECTIONS.map(({ id, title }) => (
+          {sections.map(({ id, title }) => (
             <section key={id} className="article-section" data-section={id} data-ency-reveal aria-labelledby={`sec-${id}`}>
               <h4 id={`sec-${id}`}>
                 {id === "clinical" && <Stethoscope size={16} aria-hidden="true" />}
@@ -401,7 +405,7 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
               </h4>
               {sectionLocked(id) ? (
                 <LockedSection
-                  label={id === "clinical" && !articleLocked ? "Plan Profesional" : "Plan Estudiante"}
+                  label={id === "clinical" && !articleLocked ? e.planPro : e.planStudent}
                   onUpgrade={onUpgrade}
                 />
               ) : (
@@ -412,14 +416,14 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
           ))}
 
           <section className="article-section" data-ency-reveal aria-labelledby="sec-conditions">
-            <h4 id="sec-conditions">Condiciones frecuentes</h4>
+            <h4 id="sec-conditions">{e.conditions}</h4>
             <ul className="condition-chips">
               {organ.conditions.map((condition) => <li key={condition}>{condition}</li>)}
             </ul>
           </section>
 
           <section className="article-section" data-ency-reveal aria-labelledby="sec-related">
-            <h4 id="sec-related">Artículos relacionados</h4>
+            <h4 id="sec-related">{e.related}</h4>
             <div className="related-grid">
               {article.related.map((id) => {
                 const related = organById[id];
@@ -440,8 +444,9 @@ function ArticlesView({ articleId, pendingSection, onSectionHandled, plan, onSel
 }
 
 function StructureList({ organ }: { organ: Organ }) {
+  const { m, t } = useI18n();
   return (
-    <ul className="structure-list" aria-label={`Estructuras del ${organ.name.toLowerCase()}`}>
+    <ul className="structure-list" aria-label={t(m.encyclopedia.structuresOf, { organ: organ.name.toLowerCase() })}>
       {organ.hotspots.map((hotspot) => (
         <li key={hotspot.id} style={{ "--dot": hotspot.color } as React.CSSProperties}>
           <b>{hotspot.label}</b>
@@ -453,34 +458,38 @@ function StructureList({ organ }: { organ: Organ }) {
 }
 
 function LockedSection({ label, onUpgrade }: { label: string; onUpgrade: () => void }) {
+  const { m, t } = useI18n();
   return (
     <div className="locked-section">
       <span className="locked-lines" aria-hidden="true"><i /><i /><i /></span>
       <button type="button" onClick={onUpgrade}>
-        <Lock size={14} /> Disponible con el {label} <ArrowRight size={14} />
+        <Lock size={14} /> {t(m.encyclopedia.lockedWith, { plan: label })} <ArrowRight size={14} />
       </button>
     </div>
   );
 }
 
 function GlossaryView({ query, onOpenOrgan }: { query: string; onOpenOrgan: (id: OrganId) => void }) {
+  const { m, t, locale } = useI18n();
+  const e = m.encyclopedia;
+  const { glossary, organById } = useAtlasContent();
   const needle = normalize(query);
   const filtered = useMemo(
     () =>
       needle
         ? glossary.filter((entry) => normalize(`${entry.term} ${entry.definition}`).includes(needle))
         : glossary,
-    [needle],
+    [needle, glossary],
   );
   const groups = useMemo(() => {
     const map = new Map<string, GlossaryEntry[]>();
-    for (const entry of [...filtered].sort((a, b) => a.term.localeCompare(b.term, "es"))) {
+    for (const entry of [...filtered].sort((a, b) => a.term.localeCompare(b.term, locale))) {
       const letter = indexLetter(entry.term);
       map.set(letter, [...(map.get(letter) ?? []), entry]);
     }
     return map;
-  }, [filtered]);
-  const letters = useMemo(() => Array.from(new Set(glossary.map((entry) => indexLetter(entry.term)))).sort(), []);
+  }, [filtered, locale]);
+  const letters = useMemo(() => Array.from(new Set(glossary.map((entry) => indexLetter(entry.term)))).sort(), [glossary]);
   const listRef = useRef<HTMLDivElement>(null);
 
   const jump = (letter: string) => {
@@ -492,7 +501,7 @@ function GlossaryView({ query, onOpenOrgan }: { query: string; onOpenOrgan: (id:
 
   return (
     <div className="glossary">
-      <nav className="letter-bar" aria-label="Índice alfabético">
+      <nav className="letter-bar" aria-label={e.alphabet}>
         {letters.map((letter) => (
           <button key={letter} type="button" disabled={!groups.has(letter)} onClick={() => jump(letter)}>
             {letter}
@@ -500,12 +509,12 @@ function GlossaryView({ query, onOpenOrgan }: { query: string; onOpenOrgan: (id:
         ))}
       </nav>
       <div className="glossary-list" ref={listRef}>
-        <p className="results-count" aria-live="polite">{filtered.length} términos</p>
+        <p className="results-count" aria-live="polite">{t(e.terms, { count: filtered.length })}</p>
         {filtered.length === 0 && (
-          <div className="ency-empty"><Search size={22} /><p>Ningún término coincide con «{query}».</p></div>
+          <div className="ency-empty"><Search size={22} /><p>{t(e.noTerms, { query })}</p></div>
         )}
         {[...groups.entries()].map(([letter, entries]) => (
-          <section key={letter} data-letter={letter} aria-label={`Letra ${letter}`}>
+          <section key={letter} data-letter={letter} aria-label={t(e.letter, { letter })}>
             <h4>{letter}</h4>
             <dl>
               {entries.map(({ term, definition, organId }) => (

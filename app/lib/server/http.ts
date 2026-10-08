@@ -1,13 +1,16 @@
 import { DatabaseUnavailableError, getDb, type Database } from "../../../db";
+import { messagesFor } from "../../i18n/server";
+import type { Messages } from "../../i18n/messages/es-MX";
 import { getUserBySessionToken, type SessionUser } from "./auth-store";
-import { BillingError } from "./billing/service";
+import { BillingError, type BillingErrorCode } from "./billing/service";
 import { BillingProviderError } from "./billing/provider";
 import { EmailUnavailableError } from "./mailer";
 
 /**
  * Utilidades para rutas API: sesión por cookie, defensa CSRF y respuestas
- * JSON consistentes. Todo trabaja sobre `Request`/`Response` estándar para ser
- * portable entre Next (Vercel) y vinext (Cloudflare).
+ * JSON consistentes en el idioma del usuario (cookie o `Accept-Language`).
+ * Todo trabaja sobre `Request`/`Response` estándar para ser portable entre
+ * Next (Vercel) y vinext (Cloudflare).
  */
 
 export const SESSION_COOKIE = "atlas_session";
@@ -73,73 +76,86 @@ export function clearSessionCookie(request: Request): string {
  * Un formulario de otro sitio no puede enviar `application/json` sin preflight,
  * y el encabezado Origin no se puede falsificar desde el navegador.
  */
-export function assertSameOrigin(request: Request): void {
+export function assertSameOrigin(request: Request, m: Messages): void {
   const origin = request.headers.get("origin");
-  if (!origin) throw new HttpError(403, "Solicitud no permitida.");
+  if (!origin) throw new HttpError(403, m.errors.forbidden);
   let originHost: string;
   try {
     originHost = new URL(origin).host.toLowerCase();
   } catch {
-    throw new HttpError(403, "Solicitud no permitida.");
+    throw new HttpError(403, m.errors.forbidden);
   }
   // El host público puede llegar en Host o, detrás de un proxy, en
   // X-Forwarded-Host; basta con que el Origin del navegador coincida con uno.
   const hosts = [request.headers.get("host"), request.headers.get("x-forwarded-host"), new URL(request.url).host]
     .filter((value): value is string => Boolean(value))
     .map((value) => value.split(",")[0].trim().toLowerCase());
-  if (!hosts.includes(originHost)) throw new HttpError(403, "Solicitud no permitida.");
+  if (!hosts.includes(originHost)) throw new HttpError(403, m.errors.forbidden);
 }
 
-export async function readJson(request: Request): Promise<Record<string, unknown>> {
+export async function readJson(request: Request, m: Messages): Promise<Record<string, unknown>> {
   if (!(request.headers.get("content-type") ?? "").includes("application/json")) {
-    throw new HttpError(415, "Se esperaba JSON.");
+    throw new HttpError(415, m.errors.jsonExpected);
   }
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) throw new HttpError(413, "Solicitud demasiado grande.");
+  if (text.length > MAX_BODY_BYTES) throw new HttpError(413, m.errors.tooLarge);
   try {
     const value: unknown = JSON.parse(text);
     if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
   } catch {
     // cae al error de abajo
   }
-  throw new HttpError(400, "JSON no válido.");
+  throw new HttpError(400, m.errors.invalidJson);
 }
 
-/** Envuelve un handler mapeando errores conocidos a respuestas JSON. */
-export function handle(handler: (request: Request) => Promise<Response>) {
+const BILLING_ERRORS: Record<BillingErrorCode, { status: number; key: keyof Messages["errors"] }> = {
+  not_configured: { status: 503, key: "paymentsUnavailable" },
+  email_unverified: { status: 403, key: "emailUnverified" },
+  invalid_plan: { status: 422, key: "invalidPlan" },
+  invalid_cycle: { status: 422, key: "invalidCycle" },
+  already_subscribed: { status: 409, key: "alreadySubscribed" },
+  no_subscription: { status: 422, key: "noSubscription" },
+};
+
+/**
+ * Envuelve un handler: le entrega el diccionario del idioma del usuario y
+ * traduce los errores conocidos a respuestas JSON en ese idioma.
+ */
+export function handle(handler: (request: Request, m: Messages) => Promise<Response>) {
   return async (request: Request): Promise<Response> => {
+    const m = messagesFor(request);
     try {
-      return await handler(request);
+      return await handler(request, m);
     } catch (error) {
       if (error instanceof HttpError) {
         return json({ error: error.message, fields: error.fields }, { status: error.status });
       }
       if (error instanceof BillingError) {
-        const status = error.code === "not_configured" ? 503 : error.code === "email_unverified" ? 403 : error.code === "already_subscribed" ? 409 : 422;
-        return json({ error: error.message, code: error.code }, { status });
+        const { status, key } = BILLING_ERRORS[error.code];
+        return json({ error: m.errors[key], code: error.code }, { status });
       }
       if (error instanceof BillingProviderError) {
         console.error("[billing]", error.message);
-        return json({ error: "El procesador de pagos no respondió. Intenta de nuevo en unos minutos." }, { status: 502 });
+        return json({ error: m.errors.paymentsProvider }, { status: 502 });
       }
       if (error instanceof EmailUnavailableError) {
-        return json({ error: "El envío de correos no está disponible en este momento." }, { status: 503 });
+        return json({ error: m.errors.emailUnavailable }, { status: 503 });
       }
       if (error instanceof DatabaseUnavailableError) {
         console.error("[db]", error.message, error.cause ?? "");
-        return json({ error: error.message }, { status: 503 });
+        return json({ error: m.errors.database }, { status: 503 });
       }
       console.error("[api] unexpected error", error);
-      return json({ error: "Ocurrió un error inesperado. Intenta de nuevo." }, { status: 500 });
+      return json({ error: m.errors.unexpected }, { status: 500 });
     }
   };
 }
 
-export async function requireUser(request: Request): Promise<{ db: Database; user: SessionUser }> {
+export async function requireUser(request: Request, m: Messages): Promise<{ db: Database; user: SessionUser }> {
   const token = readSessionToken(request);
-  if (!token) throw new HttpError(401, "Inicia sesión para continuar.");
+  if (!token) throw new HttpError(401, m.errors.signInRequired);
   const db = await getDb();
   const user = await getUserBySessionToken(db, token);
-  if (!user) throw new HttpError(401, "Tu sesión expiró. Inicia sesión de nuevo.");
+  if (!user) throw new HttpError(401, m.errors.sessionExpired);
   return { db, user };
 }

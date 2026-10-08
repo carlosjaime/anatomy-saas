@@ -3,12 +3,17 @@ import Link from "next/link";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { DatabaseUnavailableError, getDb } from "../../db";
 import { AuthLayout } from "../components/AuthLayout";
+import { Confetti } from "../components/ui/Confetti";
+import { getI18n } from "../i18n/server";
 import { markEmailVerified } from "../lib/server/auth-store";
 import { consumeEmailToken } from "../lib/server/email-tokens";
 import { getCurrentUser } from "../lib/server/session";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Verificar correo — Atlas Anatómico", robots: { index: false } };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).m.meta.verify, robots: { index: false } };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -28,21 +33,26 @@ async function verify(token: string | undefined): Promise<boolean> {
 
 export default async function VerifyEmailPage({ searchParams }: { searchParams: SearchParams }) {
   const raw = (await searchParams).token;
+  const consumed = await verify(Array.isArray(raw) ? raw[0] : raw);
   // Un enlace ya usado no es un error si la cuenta abierta ya está verificada
   // (p. ej. al abrirlo dos veces o tras el escaneo de un filtro de correo).
-  const verified = (await verify(Array.isArray(raw) ? raw[0] : raw)) || Boolean((await getCurrentUser())?.emailVerified);
+  const verified = consumed || Boolean((await getCurrentUser())?.emailVerified);
+  const { m } = await getI18n();
+  const a = m.auth;
   return (
     <AuthLayout
-      title={verified ? "¡Correo confirmado!" : "No pudimos confirmar tu correo"}
-      subtitle={verified ? "Tu cuenta está lista. Ya puedes suscribirte a cualquier plan." : "El enlace no es válido, ya se usó o expiró."}
-      footer={<Link href="/dashboard">Ir a mi panel</Link>}
+      m={m}
+      title={verified ? a.verifiedTitle : a.verifyFailedTitle}
+      subtitle={verified ? a.verifiedSubtitle : a.verifyFailedSubtitle}
+      footer={<Link href="/dashboard">{a.goToPanel}</Link>}
     >
+      {consumed && <Confetti />}
       <div className="auth-result">
         <span className={`auth-result-icon ${verified ? "" : "error"}`}>{verified ? <CheckCircle2 size={28} /> : <XCircle size={28} />}</span>
         {verified ? (
-          <Link className="btn btn-primary btn-lg" href="/atlas?panel=plans">Ver planes</Link>
+          <Link className="btn btn-primary btn-lg" href="/atlas?panel=plans">{a.viewPlans}</Link>
         ) : (
-          <Link className="btn btn-outline btn-lg" href="/cuenta">Reenviar desde mi cuenta</Link>
+          <Link className="btn btn-outline btn-lg" href="/cuenta">{a.resendFromAccount}</Link>
         )}
       </div>
     </AuthLayout>

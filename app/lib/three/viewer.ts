@@ -108,10 +108,6 @@ export class AnatomyViewer {
     // shadow gives the same read for free.
     this.renderer.shadowMap.enabled = false;
     this.renderer.localClippingEnabled = true;
-    this.renderer.domElement.setAttribute(
-      "aria-label",
-      "Modelo anatómico 3D interactivo. Arrastra para rotar, desplázate para hacer zoom y toca un punto para leer sobre esa estructura.",
-    );
     this.renderer.domElement.tabIndex = 0;
     container.appendChild(this.renderer.domElement);
 
@@ -558,6 +554,11 @@ export class AnatomyViewer {
   };
 
   // ---------------------------------------------------------------- tools
+
+  /** Nombre accesible del canvas, en el idioma activo. */
+  setLabel(label: string) {
+    this.renderer.domElement.setAttribute("aria-label", label);
+  }
 
   setAutoRotate(enabled: boolean) {
     this.autoRotateWanted = enabled;

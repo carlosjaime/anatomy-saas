@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Source_Serif_4, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+// Después de globals: las clases de Animate.css deben ganar a las animaciones base.
+import "./styles/animate-subset.css";
+import { Providers } from "./components/Providers";
+import { getI18n } from "./i18n/server";
 
 // A clinical, highly legible UI face — the same family of type used across
 // modern medical and health-tech products.
@@ -36,52 +40,51 @@ const siteUrl =
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "https://anatomy-atelier.openai.site");
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: "Atlas Anatómico — Anatomía clínica 3D para medicina",
-  description:
-    "Explora órganos en 3D con precisión médica —corazón, cerebro, pulmones, hígado, riñones, ojo, intestino, páncreas y piel— en una plataforma interactiva pensada para el aprendizaje clínico.",
-  applicationName: "Atlas Anatómico",
-  keywords: ["anatomía", "anatomía 3D", "cuerpo humano", "educación médica", "aprendizaje interactivo", "órganos", "plataforma médica"],
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    shortcut: "/favicon.svg",
-    apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
-  },
-  openGraph: {
-    type: "website",
-    siteName: "Atlas Anatómico",
-    title: "Atlas Anatómico — Anatomía 3D para estudiantes y profesionales de la salud",
-    description: "Aprende anatomía con precisión clínica a través de especímenes 3D interactivos.",
-    images: [OG_IMAGE],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Atlas Anatómico — Anatomía 3D para estudiantes y profesionales de la salud",
-    description: "Aprende anatomía con precisión clínica a través de especímenes 3D interactivos.",
-    images: [OG_IMAGE],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale, m } = await getI18n();
+  return {
+    metadataBase: new URL(siteUrl),
+    title: m.meta.title,
+    description: m.meta.description,
+    applicationName: m.brand.name,
+    keywords:
+      locale === "en-US"
+        ? ["anatomy", "3D anatomy", "human body", "medical education", "interactive learning", "organs", "medical platform"]
+        : ["anatomía", "anatomía 3D", "cuerpo humano", "educación médica", "aprendizaje interactivo", "órganos", "plataforma médica"],
+    icons: {
+      icon: [
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      shortcut: "/favicon.svg",
+      apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
+    },
+    alternates: { languages: { "es-MX": "/", "en-US": "/" } },
+    openGraph: {
+      type: "website",
+      siteName: m.brand.name,
+      locale: locale.replace("-", "_"),
+      title: m.meta.title,
+      description: m.meta.description,
+      images: [OG_IMAGE],
+    },
+    twitter: { card: "summary_large_image", title: m.meta.title, description: m.meta.description, images: [OG_IMAGE] },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#0b7a8a",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { locale, m } = await getI18n();
   return (
-    <html lang="es">
-      <body
-        className={`${sans.variable} ${serif.variable}`}
-      >
-        {children}
+    <html lang={locale}>
+      <body className={`${sans.variable} ${serif.variable}`}>
+        <Providers locale={locale} messages={m}>
+          {children}
+        </Providers>
       </body>
     </html>
   );
