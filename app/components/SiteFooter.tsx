@@ -3,7 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { BrandLockup } from "./BrandMark";
 import { BackToTop } from "./ui/BackToTop";
 import type { Messages } from "../i18n/messages/es-MX";
-import { DEVELOPER } from "../lib/brand";
+import { COPYRIGHT, DEVELOPER } from "../lib/brand";
 
 type Props = {
   m: Messages;
@@ -13,18 +13,18 @@ type Props = {
   className?: string;
 };
 
-function DevHiveMark({ alt, size }: { alt: string; size: number }) {
+function DeveloperMark({ alt, size }: { alt: string; size: number }) {
   return (
     // Imagen remota fija y pequeña: <img> evita el optimizador (y su lista de
     // dominios) y las dimensiones explícitas impiden saltos de diseño (CLS).
-    <img className="devhive-logo" src={DEVELOPER.logoUrl} alt={alt} width={size} height={size} loading="lazy" decoding="async" />
+    <img className="developer-logo" src={DEVELOPER.logoUrl} alt={alt} width={size} height={size} loading="lazy" decoding="async" />
   );
 }
 
 function Copyright({ m }: { m: Messages }) {
   return (
     <p className="footer-copyright">
-      © {DEVELOPER.copyrightYear} <strong>{DEVELOPER.name}</strong> <span aria-hidden="true">·</span> {m.footer.rights}
+      © {COPYRIGHT.year} <strong>{COPYRIGHT.holder}</strong> <span aria-hidden="true">·</span> {m.footer.rights}
     </p>
   );
 }
@@ -36,7 +36,7 @@ export function SiteFooter({ m, variant = "full", signedIn = false, className = 
     return (
       <footer className={`site-footer compact ${className}`} aria-label={f.label}>
         <span className="footer-dev">
-          <DevHiveMark alt={f.devhiveAlt} size={28} />
+          <DeveloperMark alt={f.developerAlt} size={28} />
           <Copyright m={m} />
         </span>
         <nav className="footer-compact-links" aria-label={f.company}>
@@ -85,10 +85,10 @@ export function SiteFooter({ m, variant = "full", signedIn = false, className = 
         <section className="footer-dev-card" data-animate style={{ "--i": 3 } as React.CSSProperties}>
           <small>{f.developedBy}</small>
           <div>
-            <DevHiveMark alt={f.devhiveAlt} size={52} />
+            <DeveloperMark alt={f.developerAlt} size={52} />
             <span>
               <strong>{DEVELOPER.name}</strong>
-              <em>{f.devhiveTagline}</em>
+              <em>{f.developerTagline}</em>
             </span>
           </div>
         </section>

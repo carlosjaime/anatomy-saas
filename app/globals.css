@@ -1851,7 +1851,7 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 
 /* ═══════════════════════ Pie de página ═══════════════════════ */
 
-.devhive-logo { flex: none; border-radius: 22%; box-shadow: 0 6px 16px rgba(10,30,50,.16); object-fit: contain; }
+.developer-logo { flex: none; border-radius: 22%; box-shadow: 0 6px 16px rgba(10,30,50,.16); object-fit: contain; }
 .footer-copyright { margin: 0; color: var(--muted); font: 500 13px/1.5 var(--font-sans), sans-serif; }
 .footer-copyright strong { color: var(--ink); font-weight: 700; }
 
@@ -1873,8 +1873,8 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 .footer-dev-card:hover { transform: translateY(-3px); box-shadow: 0 22px 44px rgba(14,40,62,.1); }
 .footer-dev-card small { color: var(--muted); font: 700 11px var(--font-sans), sans-serif; letter-spacing: .14em; text-transform: uppercase; }
 .footer-dev-card > div { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
-.footer-dev-card:hover .devhive-logo { animation: devhive-pop .6s var(--ease-out); }
-@keyframes devhive-pop { 40% { transform: rotate(-6deg) scale(1.08); } }
+.footer-dev-card:hover .developer-logo { animation: developer-pop .6s var(--ease-out); }
+@keyframes developer-pop { 40% { transform: rotate(-6deg) scale(1.08); } }
 .footer-dev-card strong { display: block; color: var(--ink); font: 600 18px/1.2 var(--font-serif), serif; }
 .footer-dev-card em { display: block; margin-top: 3px; color: var(--muted); font: 500 12px/1.4 var(--font-sans), sans-serif; font-style: normal; }
 .footer-bottom { margin-top: 40px; padding-top: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; border-top: 1px solid var(--line); }
@@ -2181,7 +2181,7 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 
 /* Acceso destacado al reto anatómico en la barra del atlas. */
 .main-nav .game-nav-link svg { color: #e2614f; }
-.main-nav .game-nav-link:hover svg { animation: devhive-pop .6s var(--ease-out); }
+.main-nav .game-nav-link:hover svg { animation: developer-pop .6s var(--ease-out); }
 
 /* Panel: tarjeta del reto (banda a todo lo ancho). */
 .game-card { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; background: var(--surface); }

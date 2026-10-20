@@ -92,7 +92,7 @@ export function AboutPage({ m, content, signedIn }: Props) {
 
         <section className="about-builder" data-animate aria-labelledby="builder-title">
           <div className="about-builder-logo">
-            <img src={DEVELOPER.logoUrl} alt={m.footer.devhiveAlt} width={128} height={128} loading="lazy" decoding="async" />
+            <img src={DEVELOPER.logoUrl} alt={m.footer.developerAlt} width={128} height={128} loading="lazy" decoding="async" />
           </div>
           <div>
             <h2 id="builder-title">{a.builtByTitle}</h2>

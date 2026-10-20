@@ -4,10 +4,11 @@ import en from "../app/i18n/messages/en-US";
 import { switchLocale } from "./helpers";
 
 test.describe("pie de página y Acerca de", () => {
-  test("el footer completo muestra a DevHive y enlaza a Acerca de", async ({ page }) => {
+  test("el footer completo muestra al desarrollador y enlaza a Acerca de", async ({ page }) => {
     await page.goto("/");
     const footer = page.getByRole("contentinfo", { name: es.footer.label });
-    await expect(footer.getByAltText(es.footer.devhiveAlt)).toBeVisible();
+    await expect(footer.getByAltText(es.footer.developerAlt)).toBeVisible();
+    await expect(footer).toContainText("CodexFight");
     await expect(footer).toContainText(`© 2026 DevHive Software · ${es.footer.rights}`);
     await footer.getByRole("link", { name: es.footer.about }).click();
     await expect(page).toHaveURL(/\/acerca$/);
@@ -28,7 +29,7 @@ test.describe("pie de página y Acerca de", () => {
       await page.goto(path);
       const footer = page.locator(".site-footer.compact");
       await footer.scrollIntoViewIfNeeded();
-      await expect(footer.getByAltText(es.footer.devhiveAlt)).toBeVisible();
+      await expect(footer.getByAltText(es.footer.developerAlt)).toBeVisible();
       await expect(footer.getByRole("link", { name: es.footer.about })).toHaveAttribute("href", "/acerca");
     }
   });
