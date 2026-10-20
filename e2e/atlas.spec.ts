@@ -24,6 +24,26 @@ test.describe("atlas 3D y enciclopedia", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("vistas anatómicas y captura del espécimen", async ({ page }) => {
+    await page.goto("/atlas");
+    await expect(page.locator("canvas").first()).toBeVisible();
+    const viewTool = page.getByTestId("tool-view");
+    await viewTool.click();
+    await expect(viewTool).toHaveAttribute("aria-pressed", "true");
+    await expect(viewTool).toContainText(es.viewer.views.anterior);
+    await expect(page.getByTestId("tool-rotate")).toHaveAttribute("aria-pressed", "false");
+    await viewTool.click();
+    await viewTool.click();
+    await expect(viewTool).toContainText(es.viewer.views.posterior);
+
+    const download = page.waitForEvent("download");
+    await page.getByTestId("tool-capture").click();
+    expect((await download).suggestedFilename()).toBe("atlas-anatomico-heart-posterior.png");
+
+    await page.getByTestId("tool-reset").click();
+    await expect(viewTool).toHaveAttribute("aria-pressed", "false");
+  });
+
   test("los órganos Pro muestran el muro de pago a invitados", async ({ page }) => {
     await page.goto("/atlas");
     await page.getByTestId("organ-pancreas").click();

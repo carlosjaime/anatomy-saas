@@ -4,6 +4,8 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import {
   Activity,
   ArrowLeft,
+  Axis3d,
+  Camera,
   ArrowRight,
   Box,
   CircleDashed,
@@ -14,6 +16,7 @@ import {
   Pause,
   Play,
   Route,
+  Rotate3d,
   RotateCcw,
   ScanLine,
   Search,
@@ -25,6 +28,7 @@ import { useI18n } from "../i18n/client";
 import { useAtlasContent } from "./atlas/AtlasContent";
 import { useToast } from "./ui/Toast";
 import type { AnatomyViewer } from "../lib/three/viewer";
+import { ANATOMICAL_VIEWS, type AnatomicalView } from "../lib/three/views";
 
 /** Time each tour step stays on screen while autoplay is on. */
 const TOUR_STEP_MS = 5200;
@@ -72,6 +76,7 @@ export function OrganViewer({
   const [progress, setProgress] = useState(0);
   const [slowLoad, setSlowLoad] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [view, setView] = useState<AnatomicalView | null>(null);
   const [tour, setTour] = useState<Tour | null>(null);
   const [tourOrganId, setTourOrganId] = useState(organ.id);
   const { m, t } = useI18n();
@@ -227,20 +232,41 @@ export function OrganViewer({
     if (tool === "section") setActiveTool(viewer.toggleCrossSection() ? tool : null);
     if (tool === "layers") setActiveTool(viewer.toggleLayers() ? tool : null);
     if (tool === "compare") onCompare();
+    if (tool === "view") {
+      const next = ANATOMICAL_VIEWS[(view ? ANATOMICAL_VIEWS.indexOf(view) + 1 : 0) % ANATOMICAL_VIEWS.length];
+      onAutoRotate(false);
+      viewer.setView(next);
+      setView(next);
+      toast.info(t(v.viewChanged, { view: v.views[next] }));
+    }
+    if (tool === "capture") {
+      try {
+        const link = document.createElement("a");
+        link.href = viewer.capture();
+        link.download = `atlas-anatomico-${organ.id}-${view ?? "vista"}.png`;
+        link.click();
+        toast.info(v.captured);
+      } catch {
+        toast.error(v.captureFailed);
+      }
+    }
     if (tool === "reset") {
       viewer.reset();
       setActiveTool(null);
+      setView(null);
       setTour(null);
     }
   };
 
   const tools = [
-    { id: "rotate", label: v.rotate, icon: RotateCcw, pressed: autoRotate },
+    { id: "rotate", label: v.rotate, icon: Rotate3d, pressed: autoRotate },
+    { id: "view", label: view ? v.views[view] : v.view, icon: Axis3d, pressed: view !== null },
     { id: "zoom", label: v.zoom, icon: Search, pressed: false },
     { id: "isolate", label: v.isolate, icon: CircleDashed, pressed: activeTool === "isolate" },
     { id: "section", label: v.section, icon: ScanLine, pressed: activeTool === "section" },
     { id: "layers", label: v.mesh, icon: Layers3, pressed: activeTool === "layers" },
     { id: "compare", label: v.compare, icon: locked ? Lock : Box, pressed: compare },
+    { id: "capture", label: v.capture, icon: Camera, pressed: false },
     { id: "reset", label: v.reset, icon: RotateCcw, pressed: false },
   ];
 
@@ -261,8 +287,9 @@ export function OrganViewer({
             type="button"
             className={`tool-button ${pressed ? "active" : ""}`}
             onClick={() => handleTool(id)}
-            aria-pressed={id === "zoom" || id === "reset" ? undefined : pressed}
+            aria-pressed={id === "zoom" || id === "reset" || id === "capture" ? undefined : pressed}
             title={label}
+            data-testid={`tool-${id}`}
           >
             <Icon size={19} strokeWidth={1.65} />
             <span>{label}</span>

@@ -4,6 +4,7 @@ import gsap from "gsap";
 import type { Hotspot } from "../anatomy-data";
 import { AnatomyAssetManager, type LoadedOrgan } from "./loaders";
 import { modelUrlForDetail } from "./lod";
+import type { AnatomicalView } from "./views";
 import { HotspotLayer } from "./hotspots";
 import { IDENTITY_SAMPLE, sampleMotion, type MotionProfile, type MotionSample } from "./motion";
 
@@ -27,6 +28,10 @@ const PLINTH_TOP = PLINTH_Y + 0.17;
  *  rather than an edge-on band across the background. */
 const HOME_CAMERA = { x: 0, y: 1.05, z: 8.2 };
 const HOME_TARGET = { x: 0, y: 0.02, z: 0 };
+/** Giro inicial del espécimen (ligeramente de tres cuartos). */
+const HOME_YAW = -0.28;
+
+const VIEW_YAW: Record<AnatomicalView, number> = { anterior: 0.28, left: 0.28 - Math.PI / 2, posterior: 0.28 + Math.PI, right: 0.28 + Math.PI / 2 };
 
 export class AnatomyViewer {
   private renderer: THREE.WebGLRenderer;
@@ -655,6 +660,27 @@ export class AnatomyViewer {
       .to(this.controls.target, { x: nextTarget.x, y: nextTarget.y, z: nextTarget.z, duration: 1.1, ease: "power3.inOut" }, 0);
     this.select(id);
     return true;
+  }
+
+  /**
+   * Vistas anatómicas estándar. El modelo mira hacia +z (vista anterior), así
+   * que el lado izquierdo del paciente queda en +x: girar −90° lo trae al frente.
+   */
+  setView(view: AnatomicalView) {
+    if (!this.organ) return;
+    this.focusTimeline?.kill();
+    this.focusTimeline = null;
+    this.select(null);
+    this.interactionUntil = performance.now() + 900;
+    this.tween(this.camera.position, { ...HOME_CAMERA, duration: 0.8, ease: "power3.out" });
+    this.tween(this.controls.target, { ...HOME_TARGET, duration: 0.8, ease: "power3.out" });
+    this.tween(this.organ.pivot.rotation, { x: 0.05, y: HOME_YAW + VIEW_YAW[view], z: 0, duration: 0.9, ease: "power3.inOut" });
+  }
+
+  /** PNG del lienzo tal como se ve, renderizado en el mismo tick (sin preserveDrawingBuffer). */
+  capture(): string {
+    this.renderer.render(this.scene, this.camera);
+    return this.renderer.domElement.toDataURL("image/png");
   }
 
   reset() {
