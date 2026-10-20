@@ -115,17 +115,19 @@ const BILLING_ERRORS: Record<BillingErrorCode, { status: number; key: keyof Mess
   invalid_cycle: { status: 422, key: "invalidCycle" },
   already_subscribed: { status: 409, key: "alreadySubscribed" },
   no_subscription: { status: 422, key: "noSubscription" },
+  invalid_transition: { status: 409, key: "invalidTransition" },
+  rate_limited: { status: 429, key: "billingRateLimited" },
 };
 
 /**
  * Envuelve un handler: le entrega el diccionario del idioma del usuario y
  * traduce los errores conocidos a respuestas JSON en ese idioma.
  */
-export function handle(handler: (request: Request, m: Messages) => Promise<Response>) {
-  return async (request: Request): Promise<Response> => {
+export function handle<Context = unknown>(handler: (request: Request, m: Messages, context: Context) => Promise<Response>) {
+  return async (request: Request, context: Context): Promise<Response> => {
     const m = messagesFor(request);
     try {
-      return await handler(request, m);
+      return await handler(request, m, context);
     } catch (error) {
       if (error instanceof HttpError) {
         return json({ error: error.message, fields: error.fields }, { status: error.status });
@@ -135,7 +137,7 @@ export function handle(handler: (request: Request, m: Messages) => Promise<Respo
         return json({ error: m.errors[key], code: error.code }, { status });
       }
       if (error instanceof BillingProviderError) {
-        console.error("[billing]", error.message);
+        console.error("[billing]", error.message, error.debugId ? `debug_id=${error.debugId}` : "");
         return json({ error: m.errors.paymentsProvider }, { status: 502 });
       }
       if (error instanceof EmailUnavailableError) {

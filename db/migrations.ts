@@ -80,6 +80,42 @@ export const MIGRATIONS: readonly Migration[] = [
       `CREATE INDEX IF NOT EXISTS email_tokens_user_idx ON email_tokens (user_id, purpose)`,
     ],
   },
+  {
+    version: 3,
+    name: "paypal-transactions-and-webhooks",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS billing_transactions (
+        id TEXT PRIMARY KEY NOT NULL,
+        provider TEXT NOT NULL,
+        subscription_id TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK (kind IN ('payment', 'refund', 'reversal')),
+        status TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
+        currency TEXT NOT NULL,
+        flagged INTEGER NOT NULL DEFAULT 0,
+        related_id TEXT,
+        occurred_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS billing_transactions_user_time_idx ON billing_transactions (user_id, occurred_at)`,
+      `CREATE INDEX IF NOT EXISTS billing_transactions_subscription_idx ON billing_transactions (subscription_id)`,
+      `CREATE TABLE IF NOT EXISTS webhook_events (
+        id TEXT PRIMARY KEY NOT NULL,
+        provider TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        resource_id TEXT,
+        status TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 1,
+        error TEXT,
+        received_at INTEGER NOT NULL,
+        processed_at INTEGER
+      )`,
+      `CREATE INDEX IF NOT EXISTS webhook_events_resource_idx ON webhook_events (resource_id)`,
+      `CREATE INDEX IF NOT EXISTS subscriptions_user_status_idx ON subscriptions (user_id, status)`,
+    ],
+  },
 ];
 
 /** Mínimo común entre libSQL y D1 que necesita el ejecutor. */

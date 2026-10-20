@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, BadgeCheck, CalendarClock, CheckCircle2, Clock, CreditCard, MailWarning, ShieldCheck } from "lucide-react";
-import { CancelSubscriptionButton, ResendVerificationButton } from "./AccountForms";
+import { AlertTriangle, ArrowRight, BadgeCheck, CalendarClock, CheckCircle2, Clock, CreditCard, MailWarning, PauseCircle, Receipt, ShieldCheck } from "lucide-react";
+import { ResendVerificationButton, SubscriptionActionButton } from "./AccountForms";
 import { DashShell, roleLabel } from "./dashboard/DashShell";
 import { Confetti } from "./ui/Confetti";
 import type { Locale } from "../i18n/config";
@@ -9,10 +9,12 @@ import type { Messages } from "../i18n/messages/es-MX";
 import { formatMXN, isPlanId } from "../lib/plans";
 import type { SessionUser } from "../lib/server/auth-store";
 import type { BillingSummary } from "../lib/server/billing/service";
+import type { BillingTransactionRow, SubscriptionRow } from "../../db/schema";
 
 type Props = {
   user: SessionUser;
   billing: BillingSummary;
+  transactions: BillingTransactionRow[];
   now: number;
   notice: string | null;
   syncFailed: boolean;
@@ -21,10 +23,15 @@ type Props = {
   m: Messages;
 };
 
-export function AccountPage({ user, billing, now, notice, syncFailed, paymentsEnabled, locale, m }: Props) {
+export function AccountPage({ user, billing, transactions, now, notice, syncFailed, paymentsEnabled, locale, m }: Props) {
   const a = m.account;
   const dateFormat = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "America/Mexico_City" });
   const formatDate = (timestamp: number | null) => (timestamp ? dateFormat.format(timestamp) : "—");
+  const money = new Intl.NumberFormat(locale, { style: "currency", currency: "MXN", currencyDisplay: "code" });
+  const processorName = (provider: SubscriptionRow["provider"]) =>
+    provider === "paypal" ? "PayPal" : provider === "mercadopago" ? a.legacyProcessor : a.demo;
+  const paused = billing.paused;
+  const pausedPlan = paused && isPlanId(paused.plan) ? m.plans.catalog[paused.plan] : null;
   const current = billing.current;
   const currentPlan = current && isPlanId(current.plan) ? m.plans.catalog[current.plan] : null;
   const inTrial = Boolean(current?.trialEndsAt && current.trialEndsAt > now && current.status === "authorized");
@@ -36,7 +43,13 @@ export function AccountPage({ user, billing, now, notice, syncFailed, paymentsEn
       ? { tone: "info" as const, text: a.returnNotice }
       : notice === "cancelled"
         ? { tone: "info" as const, text: a.cancelledNotice }
-        : undefined;
+        : notice === "abandoned"
+          ? { tone: "info" as const, text: a.abandonedNotice }
+          : notice === "paused"
+            ? { tone: "info" as const, text: m.toasts.subscriptionPaused }
+            : notice === "resumed"
+              ? { tone: "success" as const, text: m.toasts.subscriptionResumed }
+              : undefined;
 
   return (
     <DashShell user={user} active="account" m={m}>
@@ -84,7 +97,7 @@ export function AccountPage({ user, billing, now, notice, syncFailed, paymentsEn
               ) : (
                 <div><dt>{inTrial ? a.firstCharge : a.nextCharge}</dt><dd>{formatDate(current.nextPaymentAt)}</dd></div>
               )}
-              <div><dt>{a.processor}</dt><dd>{current.provider === "mercadopago" ? "Mercado Pago" : a.demo}</dd></div>
+              <div><dt>{a.processor}</dt><dd>{processorName(current.provider)}</dd></div>
             </dl>
           ) : (
             <p className="account-empty">
@@ -94,7 +107,13 @@ export function AccountPage({ user, billing, now, notice, syncFailed, paymentsEn
             </p>
           )}
 
-          {billing.pending && !current && (
+          {current && !cancelled && <p className="account-renewal">{current.cycle === "annual" ? a.renewsAnnual : a.renewsMonthly}</p>}
+
+          {paused && !current && (
+            <p className="form-info" data-testid="paused-note"><PauseCircle size={16} /> {format(a.pausedNote, { plan: pausedPlan?.name ?? "" })}</p>
+          )}
+
+          {billing.pending && !current && !paused && (
             <p className="form-info"><Clock size={16} /> {a.pending}</p>
           )}
 
@@ -106,13 +125,19 @@ export function AccountPage({ user, billing, now, notice, syncFailed, paymentsEn
             ) : (
               <p className="form-info"><AlertTriangle size={16} /> {a.paymentsOff}</p>
             )}
-            {current && !cancelled && (
-              <CancelSubscriptionButton
-                accessNote={format(a.cancelNote, {
-                  plan: currentPlan?.name ?? "",
-                  date: formatDate(Math.max(current.nextPaymentAt ?? 0, current.trialEndsAt ?? 0) || now),
-                })}
-              />
+            {paused && !current && paymentsEnabled && <SubscriptionActionButton subscriptionId={paused.id} action="activate" />}
+            {current && !cancelled && current.provider !== "mercadopago" && (
+              <>
+                <SubscriptionActionButton subscriptionId={current.id} action="suspend" />
+                <SubscriptionActionButton
+                  subscriptionId={current.id}
+                  action="cancel"
+                  accessNote={format(a.cancelNote, {
+                    plan: currentPlan?.name ?? "",
+                    date: formatDate(Math.max(current.nextPaymentAt ?? 0, current.trialEndsAt ?? 0) || now),
+                  })}
+                />
+              </>
             )}
           </div>
           <p className="account-secure"><ShieldCheck size={14} /> {a.secure}</p>
@@ -146,6 +171,39 @@ export function AccountPage({ user, billing, now, notice, syncFailed, paymentsEn
           <Link className="btn btn-outline" href="/recuperar">{a.changePassword}</Link>
         </section>
       </div>
+
+      <section className="dash-card account-history" aria-labelledby="history-title">
+        <header><h2 id="history-title"><Receipt size={17} /> {a.historyTitle}</h2></header>
+        {transactions.length === 0 ? (
+          <p className="account-empty">{a.historyEmpty}</p>
+        ) : (
+          <div className="table-scroll" role="region" aria-labelledby="history-title" tabIndex={0}>
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th scope="col">{a.historyDate}</th>
+                  <th scope="col">{a.historyConcept}</th>
+                  <th scope="col" className="num">{a.historyAmount}</th>
+                  <th scope="col">{a.historyReference}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((row) => (
+                  <tr key={row.id}>
+                    <td>{formatDate(row.occurredAt)}</td>
+                    <td>
+                      {row.kind === "payment" ? a.kindPayment : row.kind === "refund" ? a.kindRefund : a.kindReversal}
+                      {row.flagged === 1 && <span className="status-pill pending">{a.reviewFlag}</span>}
+                    </td>
+                    <td className="num">{`${row.kind === "payment" ? "" : "−"}${money.format(row.amountCents / 100)}`}</td>
+                    <td><code>{row.id}</code></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </DashShell>
   );
 }

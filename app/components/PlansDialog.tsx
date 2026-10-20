@@ -85,11 +85,11 @@ export function PlansDialog({ open, plan, onClose, viewer }: Props) {
   const checkout = async (target: PlanId) => {
     setPendingPlan(target);
     setError(null);
-    const result = await postJson<{ checkoutUrl: string }>("/api/billing/checkout", { plan: target, cycle });
+    const result = await postJson<{ checkoutUrl: string }>("/api/billing/subscriptions", { plan: target, cycle });
     if (result.ok) {
       toast.info(m.toasts.redirecting);
       startNavigationProgress();
-      // Mercado Pago aloja el formulario de pago; volvemos a /cuenta al terminar.
+      // PayPal aloja la aprobación del pago; volvemos a /cuenta al terminar.
       window.location.assign(result.data.checkoutUrl);
       return;
     }

@@ -8,6 +8,14 @@
 
 export type PlanId = "free" | "student" | "pro" | "institution";
 export type BillingCycle = "monthly" | "annual";
+export type PaidPlanId = Exclude<PlanId, "free">;
+
+/** Planes que se cobran por suscripción. */
+export const PAID_PLAN_IDS: readonly PaidPlanId[] = ["student", "pro", "institution"];
+export const BILLING_CYCLE_IDS: readonly BillingCycle[] = ["monthly", "annual"];
+
+/** Moneda única de cobro. */
+export const CURRENCY = "MXN";
 
 /** Capacidades que un plan puede desbloquear. */
 export type Feature =
@@ -80,6 +88,14 @@ export function isPlanId(value: unknown): value is PlanId {
  */
 export function parsePlan(value: unknown): PlanId {
   return isPlanId(value) ? value : DEFAULT_PLAN;
+}
+
+export function isPaidPlanId(value: unknown): value is PaidPlanId {
+  return isPlanId(value) && value !== "free";
+}
+
+export function isBillingCycle(value: unknown): value is BillingCycle {
+  return value === "monthly" || value === "annual";
 }
 
 export function hasFeature(plan: PlanId, feature: Feature): boolean {

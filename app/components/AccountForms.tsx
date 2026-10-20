@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { AlertCircle, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Loader2, MailCheck, XCircle } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Loader2, MailCheck, PauseCircle, XCircle } from "lucide-react";
 import { useI18n } from "../i18n/client";
 import { postJson } from "../lib/client-api";
 import { PASSWORD_MIN_LENGTH, normalizeEmail, passwordStrength, validateEmail, validatePassword } from "../lib/validation";
@@ -233,37 +233,73 @@ export function ResendVerificationButton() {
   );
 }
 
-export function CancelSubscriptionButton({ accessNote }: { accessNote: string }) {
+type SubscriptionAction = "cancel" | "suspend" | "activate";
+
+/**
+ * Acción sobre el ciclo de vida de una suscripción, con confirmación para las
+ * destructivas. El servidor reconcilia con PayPal antes de aplicar el cambio.
+ */
+export function SubscriptionActionButton({
+  subscriptionId,
+  action,
+  accessNote,
+}: {
+  subscriptionId: string;
+  action: SubscriptionAction;
+  /** Texto del diálogo de confirmación (solo para `cancel`). */
+  accessNote?: string;
+}) {
   const { m } = useI18n();
   const toast = useToast();
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const cancel = async () => {
-    const result = await postJson("/api/billing/cancel", {});
+  const run = async () => {
+    setBusy(true);
+    const result = await postJson(`/api/billing/subscriptions/${encodeURIComponent(subscriptionId)}/${action}`, {});
     if (result.ok) {
-      flashToast(m.toasts.subscriptionCancelled, "info");
+      const notice = action === "cancel" ? "cancelled" : action === "suspend" ? "paused" : "resumed";
+      flashToast(
+        action === "cancel" ? m.toasts.subscriptionCancelled : action === "suspend" ? m.toasts.subscriptionPaused : m.toasts.subscriptionResumed,
+        "info",
+      );
       startNavigationProgress();
-      window.location.assign("/cuenta?billing=cancelled");
+      window.location.assign(`/cuenta?billing=${notice}`);
       return;
     }
     toast.error(result.error);
+    setBusy(false);
     setOpen(false);
   };
 
+  if (action === "activate") {
+    return (
+      <button type="button" className="btn btn-primary" onClick={run} disabled={busy} aria-busy={busy} data-testid="resume-subscription">
+        {busy && <Loader2 size={16} className="spin" />} {m.account.resume}
+      </button>
+    );
+  }
+
+  const isCancel = action === "cancel";
   return (
     <>
-      <button type="button" className="btn btn-ghost danger" onClick={() => setOpen(true)} data-testid="cancel-subscription">
-        {m.account.cancel}
+      <button
+        type="button"
+        className={`btn btn-ghost${isCancel ? " danger" : ""}`}
+        onClick={() => setOpen(true)}
+        data-testid={isCancel ? "cancel-subscription" : "pause-subscription"}
+      >
+        {isCancel ? m.account.cancel : m.account.pause}
       </button>
       <ConfirmDialog
         open={open}
-        title={m.confirm.cancelTitle}
-        message={accessNote}
-        confirmLabel={m.confirm.cancelConfirm}
+        title={isCancel ? m.confirm.cancelTitle : m.confirm.pauseTitle}
+        message={isCancel ? (accessNote ?? "") : m.confirm.pauseText}
+        confirmLabel={isCancel ? m.confirm.cancelConfirm : m.confirm.pauseConfirm}
         cancelLabel={m.confirm.keepPlan}
-        tone="danger"
-        icon={<XCircle size={24} />}
-        onConfirm={cancel}
+        tone={isCancel ? "danger" : "default"}
+        icon={isCancel ? <XCircle size={24} /> : <PauseCircle size={24} />}
+        onConfirm={run}
         onClose={() => setOpen(false)}
       />
     </>

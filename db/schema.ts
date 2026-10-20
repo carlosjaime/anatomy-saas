@@ -74,16 +74,19 @@ export type StudyEventRow = typeof studyEvents.$inferSelect;
 export const SUBSCRIPTION_STATUSES = ["pending", "authorized", "paused", "cancelled"] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const BILLING_CYCLES = ["monthly", "annual"] as const;
+export const BILLING_PROVIDERS = ["paypal", "demo", "mercadopago"] as const;
+export type BillingProviderName = (typeof BILLING_PROVIDERS)[number];
 
 export const subscriptions = sqliteTable(
   "subscriptions",
   {
-    /** Identificador del proveedor (preapproval de Mercado Pago o `demo_…`). */
+    /** Identificador del proveedor (suscripción de PayPal `I-…` o `demo_…`). */
     id: text("id").primaryKey(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider", { enum: ["mercadopago", "demo"] }).notNull(),
+    /** `mercadopago` solo en filas heredadas: ya no se crean ni se sincronizan. */
+    provider: text("provider", { enum: BILLING_PROVIDERS }).notNull(),
     plan: text("plan").notNull(),
     cycle: text("cycle", { enum: BILLING_CYCLES }).notNull(),
     status: text("status", { enum: SUBSCRIPTION_STATUSES }).notNull(),
@@ -119,3 +122,62 @@ export const emailTokens = sqliteTable(
 );
 
 export type SubscriptionRow = typeof subscriptions.$inferSelect;
+
+export const TRANSACTION_KINDS = ["payment", "refund", "reversal"] as const;
+export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
+
+/**
+ * Cobros, reembolsos y reversos reportados por el procesador. Solo referencias
+ * e importes: nunca datos de tarjeta ni del medio de pago.
+ */
+export const billingTransactions = sqliteTable(
+  "billing_transactions",
+  {
+    /** Id de la transacción en el procesador (venta, reembolso o reverso). */
+    id: text("id").primaryKey(),
+    provider: text("provider", { enum: BILLING_PROVIDERS }).notNull(),
+    subscriptionId: text("subscription_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: TRANSACTION_KINDS }).notNull(),
+    status: text("status").notNull(),
+    /** Importe en centavos (positivo; el tipo indica el sentido). */
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** 1 si importe o moneda no coinciden con el plan de la suscripción. */
+    flagged: integer("flagged").notNull().default(0),
+    relatedId: text("related_id"),
+    occurredAt: integer("occurred_at").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("billing_transactions_user_time_idx").on(table.userId, table.occurredAt),
+    index("billing_transactions_subscription_idx").on(table.subscriptionId),
+  ],
+);
+
+export const WEBHOOK_EVENT_STATUSES = ["received", "processed", "ignored", "failed"] as const;
+export type WebhookEventStatus = (typeof WEBHOOK_EVENT_STATUSES)[number];
+
+/** Registro de eventos de webhook para idempotencia y auditoría. */
+export const webhookEvents = sqliteTable(
+  "webhook_events",
+  {
+    /** Id del evento en el procesador (`WH-…`). */
+    id: text("id").primaryKey(),
+    provider: text("provider", { enum: BILLING_PROVIDERS }).notNull(),
+    eventType: text("event_type").notNull(),
+    resourceId: text("resource_id"),
+    status: text("status", { enum: WEBHOOK_EVENT_STATUSES }).notNull(),
+    attempts: integer("attempts").notNull().default(1),
+    error: text("error"),
+    receivedAt: integer("received_at").notNull(),
+    processedAt: integer("processed_at"),
+  },
+  (table) => [index("webhook_events_resource_idx").on(table.resourceId)],
+);
+
+export type BillingTransactionRow = typeof billingTransactions.$inferSelect;
+export type WebhookEventRow = typeof webhookEvents.$inferSelect;

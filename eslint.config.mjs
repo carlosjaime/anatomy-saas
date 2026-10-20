@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "public/draco/**",
     "public/basis/**",
     "dist/**",
+    // Vendored Impeccable skill (third-party, bundled scripts).
+    ".claude/**",
   ]),
 ]);
 

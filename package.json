@@ -21,7 +21,8 @@
     "build:animations": "node scripts/build-animations.mjs",
     "test:e2e": "playwright test",
     "test:e2e:full": "npm run build:next && playwright test",
-    "design:detect": "impeccable detect app"
+    "design:detect": "impeccable detect app",
+    "paypal:setup": "node --import tsx scripts/paypal-setup.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",

@@ -3,7 +3,7 @@ import test from "node:test";
 import { createClient } from "@libsql/client";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { connect, type Database } from "../db/index.ts";
-import { USER_ROLES, authAttempts, emailTokens, sessions, studyEvents, subscriptions, users } from "../db/schema.ts";
+import { USER_ROLES, authAttempts, billingTransactions, emailTokens, sessions, studyEvents, subscriptions, users, webhookEvents } from "../db/schema.ts";
 import {
   LOGIN_MAX_ATTEMPTS,
   LOGIN_WINDOW_MS,
@@ -28,7 +28,7 @@ const ana = { name: "Ana Pérez", email: "ana@hospital.mx", password: "Anatomia2
 test("migrated DDL matches every column declared in the Drizzle schema", async () => {
   const client = createClient({ url: ":memory:" });
   await connect(client);
-  for (const table of [users, sessions, authAttempts, studyEvents, subscriptions, emailTokens]) {
+  for (const table of [users, sessions, authAttempts, studyEvents, subscriptions, emailTokens, billingTransactions, webhookEvents]) {
     const config = getTableConfig(table);
     const info = await client.execute(`PRAGMA table_info(${config.name})`);
     const actual = new Set(info.rows.map((row) => String(row.name)));
