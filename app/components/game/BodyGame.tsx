@@ -823,7 +823,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
                     <small>{g.difficulties[difficulty].text}</small>
                   </fieldset>
                   <p className="game-best"><Star size={14} /> {bestValue ? t(g.best, { score: bestValue }) : g.noBest}</p>
-                  <button type="button" className="btn btn-primary btn-lg btn-block btn-shine" onClick={start} data-testid="game-start">
+                  <button type="button" className="btn btn-primary btn-lg btn-block" onClick={start} data-testid="game-start">
                     <Play size={18} /> {g.start}
                   </button>
                 </div>
@@ -915,7 +915,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
               {mode === "exam" && (
                 <button
                   type="button"
-                  className="btn btn-primary btn-shine"
+                  className="btn btn-primary"
                   onClick={evaluateExam}
                   disabled={placedCount === 0 || revealed || paused}
                   data-testid="game-evaluate"
@@ -943,7 +943,7 @@ export function BodyGame({ organs, signedIn }: { organs: readonly GameOrgan[]; s
 
           {phase === "finished" && (
             <div className="game-tools">
-              <button type="button" className="btn btn-primary btn-shine" onClick={start}><RotateCcw size={16} /> {g.playAgain}</button>
+              <button type="button" className="btn btn-primary" onClick={start}><RotateCcw size={16} /> {g.playAgain}</button>
               <button type="button" className="btn btn-outline" onClick={() => setResultsOpen(true)} data-testid="game-view-results">
                 <Trophy size={16} /> {g.viewResults}
               </button>

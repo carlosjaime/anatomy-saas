@@ -453,7 +453,6 @@ const enUS: Messages = {
     keepPlan: "Keep my plan",
   },
   landing: {
-    eyebrow: "Clinical anatomy platform",
     titleA: "Human anatomy in 3D, built for",
     titleEm: "medical practice",
     lead: "Interactive specimens, guided tours and an encyclopedia with clinical correlation for medical students, residents and physicians. Study the form, understand the function and track your progress.",
@@ -469,7 +468,6 @@ const enUS: Messages = {
     bpm: "72 bpm",
     statsLabel: "The platform in numbers",
     stats: ["organs in 3D", "labeled structures", "glossary terms", "sections per article"],
-    platformEyebrow: "Platform",
     platformTitle: "Everything you need to study anatomy rigorously",
     platformLead: "Built on medical-education principles: from structure to function, and from function to the clinic.",
     features: [
@@ -480,9 +478,7 @@ const enUS: Messages = {
       { title: "Objectives and high-yield", text: "Every organ includes learning objectives, exam-ready key points and a clinical pearl." },
       { title: "Progress dashboard", text: "Mastery per organ, quiz accuracy, study streak and recommendations for what to study next." },
     ],
-    libraryEyebrow: "Library",
     libraryTitle: "Nine systems, one study method",
-    audienceEyebrow: "Who it's for",
     audienceTitle: "From the classroom to clinical practice",
     audiences: [
       { title: "Medical students", text: "Build a three-dimensional mental model from your very first anatomy and physiology courses." },
@@ -490,19 +486,16 @@ const enUS: Messages = {
       { title: "Physicians", text: "Refresh applied anatomy and use the models to explain diagnoses to your patients." },
       { title: "Educators", text: "Project specimens in class and guide your group with tours and per-organ quizzes." },
     ],
-    stepsEyebrow: "How it works",
     stepsTitle: "Three steps to study smarter",
     steps: [
       { title: "Create your account", text: "Free sign-up in under a minute. Tell us your role to personalize your dashboard." },
       { title: "Explore and study", text: "Pick an organ, start the guided tour and answer each unit's quiz." },
       { title: "Track your progress", text: "Your dashboard shows mastery per organ and recommends the next topic." },
     ],
-    plansEyebrow: "Plans",
     plansTitle: "Clear pricing in Mexican pesos",
     plansLead: "VAT included. We show the monthly price with yearly billing; you can also pay month to month.",
     startFree: "Start for free",
     institutionNote: "University or hospital? The Institutional plan covers up to 25 seats from {price} MXN/mo.",
-    faqEyebrow: "FAQ",
     faqTitle: "Your questions, answered",
     faq: [
       { q: "Do I need to install anything?", a: "No. Atlas Anatómico runs in the browser on your computer, tablet or phone, with 3D models optimized to load fast." },
@@ -569,6 +562,10 @@ const enUS: Messages = {
     quizzes: "Quizzes",
   },
   account: {
+    preferences: "Preferences",
+    language: "Language",
+    theme: "Interface theme",
+    themes: { system: "System", light: "Light", dark: "Dark" },
     paused: "Paused",
     pausedNote: "Your {plan} subscription is paused: no charges and no access to paid features until you resume it.",
     pause: "Pause",
@@ -587,7 +584,6 @@ const enUS: Messages = {
     kindRefund: "Refund",
     kindReversal: "Reversal",
     reviewFlag: "Under review",
-    eyebrow: "Settings",
     title: "My account",
     returnNotice: "We're confirming your payment with PayPal. Your plan activates as soon as it's authorized; this can take a few minutes.",
     cancelledNotice: "You cancelled your subscription. You keep access until the end of the paid period and won't be charged again.",
@@ -646,7 +642,6 @@ const enUS: Messages = {
     backToTop: "Back to top",
   },
   about: {
-    eyebrow: "About",
     title: "Anatomy with clinical rigor, designed for better learning",
     lead: "Atlas Anatómico brings together interactive 3D specimens, reviewed medical content and sound teaching principles so students, residents and physicians can understand the structure of the human body and connect it to clinical practice.",
     missionTitle: "Our mission",
@@ -659,7 +654,6 @@ const enUS: Messages = {
       { title: "Privacy and security", text: "Hashed passwords, secure sessions and payments processed by PayPal: we never see your card details." },
     ],
     numbersTitle: "The platform in numbers",
-    builtByEyebrow: "Engineering",
     builtByTitle: "Developed by DevHive Software",
     builtByText: "DevHive Software designs and builds digital products end to end: architecture, user experience, web and mobile development, and cloud operations.",
     builtByPoints: [
@@ -762,7 +756,6 @@ const enUS: Messages = {
     study: "Study",
     saved: "Your result was saved to your study dashboard.",
     signInToSave: "Sign in to save your results to your dashboard.",
-    teaserEyebrow: "New · Anatomy challenge",
     teaserTitle: "Build the human body",
     teaserText: "Drag 16 organs to their clinical regions in anterior and posterior views: learning, exam and time-attack modes.",
     teaserCta: "Play now",

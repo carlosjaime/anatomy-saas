@@ -50,7 +50,7 @@ export function GameBestCard() {
             : g.noBest}
         </p>
       </div>
-      <Link className="btn btn-primary btn-shine" href="/juego">{g.cardCta} <ArrowRight size={16} /></Link>
+      <Link className="btn btn-primary" href="/juego">{g.cardCta} <ArrowRight size={16} /></Link>
     </section>
   );
 }

@@ -3,6 +3,9 @@ import { AlertTriangle, ArrowRight, BadgeCheck, CalendarClock, CheckCircle2, Clo
 import { ResendVerificationButton, SubscriptionActionButton } from "./AccountForms";
 import { DashShell, roleLabel } from "./dashboard/DashShell";
 import { Confetti } from "./ui/Confetti";
+import { LanguageSwitcher } from "./ui/LanguageSwitcher";
+import { ThemeSwitcher } from "./ui/ThemeSwitcher";
+import type { Theme } from "../lib/theme";
 import type { Locale } from "../i18n/config";
 import { format } from "../i18n/format";
 import type { Messages } from "../i18n/messages/es-MX";
@@ -19,11 +22,12 @@ type Props = {
   notice: string | null;
   syncFailed: boolean;
   paymentsEnabled: boolean;
+  theme: Theme;
   locale: Locale;
   m: Messages;
 };
 
-export function AccountPage({ user, billing, transactions, now, notice, syncFailed, paymentsEnabled, locale, m }: Props) {
+export function AccountPage({ user, billing, transactions, now, notice, syncFailed, paymentsEnabled, theme, locale, m }: Props) {
   const a = m.account;
   const dateFormat = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "America/Mexico_City" });
   const formatDate = (timestamp: number | null) => (timestamp ? dateFormat.format(timestamp) : "—");
@@ -56,7 +60,6 @@ export function AccountPage({ user, billing, transactions, now, notice, syncFail
       {activated && <Confetti />}
       <header className="dash-header animate__animated animate__fadeInDown">
         <div>
-          <span className="eyebrow">{a.eyebrow}</span>
           <h1>{a.title}</h1>
           <p>{user.email}</p>
         </div>
@@ -119,7 +122,7 @@ export function AccountPage({ user, billing, transactions, now, notice, syncFail
 
           <div className="account-actions">
             {paymentsEnabled ? (
-              <Link className="btn btn-primary btn-shine" href="/atlas?panel=plans">
+              <Link className="btn btn-primary" href="/atlas?panel=plans">
                 {current && !cancelled ? a.changePlan : user.trialAvailable ? a.startTrial : a.viewPlans} <ArrowRight size={16} />
               </Link>
             ) : (
@@ -169,6 +172,12 @@ export function AccountPage({ user, billing, transactions, now, notice, syncFail
             </div>
           )}
           <Link className="btn btn-outline" href="/recuperar">{a.changePassword}</Link>
+          <div className="account-prefs" aria-label={a.preferences}>
+            <h3>{a.theme}</h3>
+            <ThemeSwitcher initial={theme} />
+            <h3>{a.language}</h3>
+            <LanguageSwitcher />
+          </div>
         </section>
       </div>
 

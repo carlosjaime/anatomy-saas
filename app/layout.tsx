@@ -4,7 +4,9 @@ import "./globals.css";
 // Después de globals: las clases de Animate.css deben ganar a las animaciones base.
 import "./styles/animate-subset.css";
 import { Providers } from "./components/Providers";
+import { cookies } from "next/headers";
 import { getI18n } from "./i18n/server";
+import { THEME_COOKIE, parseTheme, themeAttribute } from "./lib/theme";
 
 // A clinical, highly legible UI face — the same family of type used across
 // modern medical and health-tech products.
@@ -74,13 +76,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#0b7a8a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f8fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1724" },
+  ],
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { locale, m } = await getI18n();
+  const [{ locale, m }, cookieStore] = await Promise.all([getI18n(), cookies()]);
+  const theme = themeAttribute(parseTheme(cookieStore.get(THEME_COOKIE)?.value));
   return (
-    <html lang={locale}>
+    <html lang={locale} data-theme={theme}>
       <body className={`${sans.variable} ${serif.variable}`}>
         <Providers locale={locale} messages={m}>
           {children}

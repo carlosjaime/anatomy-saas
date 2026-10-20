@@ -41,4 +41,31 @@ test.describe("suscripciones (proveedor de demostración)", () => {
     await expect(page.locator(".status-pill.cancelled")).toHaveText(es.account.cancelled);
     await expect(page.getByRole("status").filter({ hasText: es.toasts.subscriptionCancelled })).toBeVisible();
   });
+
+  test("pausa y reactivación desde Mi cuenta, con historial y tema persistente", async ({ page, request }) => {
+    const email = uniqueEmail("pause");
+    await register(page, { email });
+    await page.goto(await linkFromMailbox(request, email, "/verificar"));
+    await page.goto("/atlas?panel=plans");
+    await page.getByRole("dialog").getByTestId("checkout-student").click();
+    await expect(page.getByTestId("current-plan")).toHaveText(es.plans.catalog.student.name);
+    await expect(page.getByRole("heading", { name: es.account.historyTitle })).toBeVisible();
+    await expect(page.getByText(es.account.historyEmpty)).toBeVisible();
+
+    await page.getByTestId("pause-subscription").click();
+    await page.getByRole("dialog").getByTestId("confirm-action").click();
+    await expect(page).toHaveURL(/billing=paused/);
+    await expect(page.getByTestId("current-plan")).toHaveText(es.plans.catalog.free.name);
+    await expect(page.getByTestId("paused-note")).toBeVisible();
+
+    await page.getByTestId("resume-subscription").click();
+    await expect(page).toHaveURL(/billing=resumed/);
+    await expect(page.getByTestId("current-plan")).toHaveText(es.plans.catalog.student.name);
+
+    await page.getByTestId("theme-dark").click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.getByTestId("theme-dark")).toHaveAttribute("aria-checked", "true");
+  });
 });

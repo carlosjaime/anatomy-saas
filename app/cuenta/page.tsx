@@ -4,6 +4,8 @@ import { AccountPage } from "../components/AccountPage";
 import { getI18n } from "../i18n/server";
 import { getBillingProvider, getBillingSummary, listTransactions, reconcileSubscription } from "../lib/server/billing/service";
 import { requireCurrentUser } from "../lib/server/session";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, parseTheme } from "../lib/theme";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -42,7 +44,11 @@ async function loadAccount(params: Record<string, string | string[] | undefined>
 
 export default async function AccountRoute({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [{ user, now, billing, transactions, syncFailed, paymentsEnabled }, { locale, m }] = await Promise.all([loadAccount(params), getI18n()]);
+  const [{ user, now, billing, transactions, syncFailed, paymentsEnabled }, { locale, m }, cookieStore] = await Promise.all([
+    loadAccount(params),
+    getI18n(),
+    cookies(),
+  ]);
   return (
     <AccountPage
       user={user}
@@ -52,6 +58,7 @@ export default async function AccountRoute({ searchParams }: { searchParams: Sea
       notice={first(params.billing) ?? null}
       syncFailed={syncFailed}
       paymentsEnabled={paymentsEnabled}
+      theme={parseTheme(cookieStore.get(THEME_COOKIE)?.value)}
       locale={locale}
       m={m}
     />

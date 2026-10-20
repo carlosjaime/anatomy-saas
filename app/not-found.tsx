@@ -15,7 +15,7 @@ export default async function NotFound() {
         <p>{p.notFoundText}</p>
         <div className="status-actions">
           <Link className="btn btn-outline" href="/"><ArrowLeft size={16} /> {p.goHome}</Link>
-          <Link className="btn btn-primary btn-shine" href="/atlas"><Box size={16} /> {p.openAtlas}</Link>
+          <Link className="btn btn-primary" href="/atlas"><Box size={16} /> {p.openAtlas}</Link>
         </div>
       </div>
     </main>

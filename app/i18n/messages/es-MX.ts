@@ -461,7 +461,6 @@ const esMX = {
     keepPlan: "Conservar plan",
   },
   landing: {
-    eyebrow: "Plataforma de anatomía clínica",
     titleA: "Anatomía humana en 3D, pensada para la",
     titleEm: "práctica médica",
     lead: "Especímenes interactivos, recorridos guiados y una enciclopedia con correlación clínica para estudiantes de medicina, residentes y médicos. Estudia la forma, entiende la función y mide tu avance.",
@@ -477,7 +476,6 @@ const esMX = {
     bpm: "72 lpm",
     statsLabel: "La plataforma en cifras",
     stats: ["órganos en 3D", "estructuras señaladas", "términos de glosario", "secciones por artículo"],
-    platformEyebrow: "Plataforma",
     platformTitle: "Todo lo que necesitas para estudiar anatomía con rigor",
     platformLead: "Diseñada con criterios de educación médica: de la estructura a la función y de la función a la clínica.",
     features: [
@@ -488,9 +486,7 @@ const esMX = {
       { title: "Objetivos y alto rendimiento", text: "Cada órgano incluye objetivos de aprendizaje, puntos clave para exámenes y una perla clínica." },
       { title: "Panel de progreso", text: "Dominio por órgano, precisión en cuestionarios, racha de estudio y recomendaciones de qué estudiar después." },
     ],
-    libraryEyebrow: "Biblioteca",
     libraryTitle: "Nueve sistemas, un mismo método de estudio",
-    audienceEyebrow: "Para quién",
     audienceTitle: "Del aula a la práctica clínica",
     audiences: [
       { title: "Estudiantes de medicina", text: "Construye un modelo mental tridimensional desde los primeros semestres de anatomía y fisiología." },
@@ -498,19 +494,16 @@ const esMX = {
       { title: "Médicos", text: "Refresca anatomía aplicada y apóyate en los modelos para explicar diagnósticos a tus pacientes." },
       { title: "Docentes", text: "Proyecta especímenes en clase y guía a tu grupo con recorridos y cuestionarios por órgano." },
     ],
-    stepsEyebrow: "Cómo funciona",
     stepsTitle: "Tres pasos para estudiar mejor",
     steps: [
       { title: "Crea tu cuenta", text: "Registro gratuito en menos de un minuto. Indica tu perfil para personalizar tu panel." },
       { title: "Explora y estudia", text: "Elige un órgano, inicia el recorrido guiado y responde el cuestionario de cada unidad." },
       { title: "Mide tu avance", text: "Tu panel muestra el dominio por órgano y te recomienda el siguiente tema." },
     ],
-    plansEyebrow: "Planes",
     plansTitle: "Precios claros en pesos mexicanos",
     plansLead: "IVA incluido. Mostramos el precio mensual con facturación anual; también puedes pagar mes a mes.",
     startFree: "Empezar gratis",
     institutionNote: "¿Universidad u hospital? El plan Institucional cubre hasta 25 licencias desde {price} MXN/mes.",
-    faqEyebrow: "Preguntas frecuentes",
     faqTitle: "Resolvemos tus dudas",
     faq: [
       { q: "¿Necesito instalar algo?", a: "No. Atlas Anatómico funciona en el navegador de tu computadora, tableta o teléfono, con modelos 3D optimizados para cargar rápido." },
@@ -577,6 +570,10 @@ const esMX = {
     quizzes: "Cuestionarios",
   },
   account: {
+    preferences: "Preferencias",
+    language: "Idioma",
+    theme: "Tema de la interfaz",
+    themes: { system: "Sistema", light: "Claro", dark: "Oscuro" },
     paused: "Pausada",
     pausedNote: "Tu suscripción al plan {plan} está pausada: no hay cobros ni acceso a funciones de pago hasta que la reactives.",
     pause: "Pausar",
@@ -595,7 +592,6 @@ const esMX = {
     kindRefund: "Reembolso",
     kindReversal: "Reverso",
     reviewFlag: "En revisión",
-    eyebrow: "Configuración",
     title: "Mi cuenta",
     returnNotice: "Estamos confirmando tu pago con PayPal. Tu plan se activa en cuanto lo autorice; puede tardar unos minutos.",
     cancelledNotice: "Cancelaste tu suscripción. Conservas el acceso hasta el final del periodo pagado y no se harán más cobros.",
@@ -654,7 +650,6 @@ const esMX = {
     backToTop: "Volver arriba",
   },
   about: {
-    eyebrow: "Acerca de",
     title: "Anatomía con rigor clínico, diseñada para aprender mejor",
     lead: "Atlas Anatómico une especímenes 3D interactivos, contenido médico revisado y principios de pedagogía para que estudiantes, residentes y médicos comprendan la estructura del cuerpo humano y la conecten con la práctica clínica.",
     missionTitle: "Nuestra misión",
@@ -667,7 +662,6 @@ const esMX = {
       { title: "Privacidad y seguridad", text: "Contraseñas cifradas, sesiones seguras y pagos procesados por PayPal: nunca vemos los datos de tu tarjeta." },
     ],
     numbersTitle: "La plataforma en cifras",
-    builtByEyebrow: "Desarrollo",
     builtByTitle: "Desarrollado por DevHive Software",
     builtByText: "DevHive Software diseña y construye producto digital de punta a punta: arquitectura, experiencia de usuario, desarrollo web y móvil, y operación en la nube.",
     builtByPoints: [
@@ -770,7 +764,6 @@ const esMX = {
     study: "Estudiar",
     saved: "Tu resultado se guardó en tu panel de estudio.",
     signInToSave: "Inicia sesión para guardar tus resultados en tu panel.",
-    teaserEyebrow: "Nuevo · Reto anatómico",
     teaserTitle: "Arma el cuerpo humano",
     teaserText: "Arrastra 16 órganos a su región clínica en vista anterior y posterior: modos aprendizaje, examen y contrarreloj.",
     teaserCta: "Jugar ahora",

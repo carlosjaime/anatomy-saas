@@ -46,7 +46,6 @@ export function AboutPage({ m, content, signedIn }: Props) {
       <main id="main">
         <section className="about-hero">
           <Link className="about-back animate__animated animate__fadeInDown" href="/"><ArrowLeft size={15} /> {m.pages.goHome}</Link>
-          <span className="eyebrow animate__animated animate__fadeInDown"><Info size={14} /> {a.eyebrow}</span>
           <h1 className="animate__animated animate__fadeInUp">{a.title}</h1>
           <p className="animate__animated animate__fadeInUp">{a.lead}</p>
         </section>
@@ -96,7 +95,6 @@ export function AboutPage({ m, content, signedIn }: Props) {
             <img src={DEVELOPER.logoUrl} alt={m.footer.devhiveAlt} width={128} height={128} loading="lazy" decoding="async" />
           </div>
           <div>
-            <span className="eyebrow">{a.builtByEyebrow}</span>
             <h2 id="builder-title">{a.builtByTitle}</h2>
             <p>{a.builtByText}</p>
             <ul>
@@ -116,7 +114,7 @@ export function AboutPage({ m, content, signedIn }: Props) {
           <h2>{a.ctaTitle}</h2>
           <p>{a.ctaText}</p>
           <div className="about-cta-actions">
-            <Link className="btn btn-light btn-lg btn-shine" href={signedIn ? "/dashboard" : "/registro"}>
+            <Link className="btn btn-light btn-lg" href={signedIn ? "/dashboard" : "/registro"}>
               {signedIn ? a.ctaDashboard : a.ctaPrimary} <ArrowRight size={18} />
             </Link>
             <Link className="btn btn-lg about-cta-ghost" href="/atlas"><Box size={18} /> {a.ctaSecondary}</Link>

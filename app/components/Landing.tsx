@@ -4,20 +4,14 @@ import {
   ArrowRight,
   BookOpenCheck,
   Box,
-  Brain,
   Check,
   ClipboardCheck,
   GraduationCap,
   HeartPulse,
-  Layers,
-  Puzzle,
   LayoutDashboard,
-  Microscope,
   Route,
   School,
-  ShieldCheck,
   Stethoscope,
-  UserRound,
 } from "lucide-react";
 import { BrandLockup } from "./BrandMark";
 import { RevealOnScroll } from "./Reveal";
@@ -76,13 +70,12 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
       <main>
         <section className="hero">
           <div className="hero-copy">
-            <span className="eyebrow animate__animated animate__fadeInDown"><HeartPulse size={14} /> {l.eyebrow}</span>
             <h1 className="hero-title">
               {l.titleA} <em>{l.titleEm}</em>.
             </h1>
             <p className="animate__animated animate__fadeInUp hero-lead">{l.lead}</p>
             <div className="hero-actions animate__animated animate__fadeInUp hero-actions-anim">
-              <Link className="btn btn-primary btn-lg btn-shine" href={user ? "/dashboard" : "/registro"}>
+              <Link className="btn btn-primary btn-lg" href={user ? "/dashboard" : "/registro"}>
                 {user ? l.ctaContinue : l.ctaStart} <ArrowRight size={18} />
               </Link>
               <Link className="btn btn-outline btn-lg" href="/atlas"><Box size={18} /> {l.ctaAtlas}</Link>
@@ -126,7 +119,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="landing-section" id="plataforma">
           <header data-animate>
-            <span className="eyebrow"><Layers size={14} /> {l.platformEyebrow}</span>
             <h2>{l.platformTitle}</h2>
             <p>{l.platformLead}</p>
           </header>
@@ -146,7 +138,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="game-teaser" aria-labelledby="game-teaser-title" data-animate>
           <div className="game-teaser-copy">
-            <span className="eyebrow"><Puzzle size={14} /> {m.game.teaserEyebrow}</span>
             <h2 id="game-teaser-title">{m.game.teaserTitle}</h2>
             <p>{m.game.teaserText}</p>
             <ul className="game-teaser-modes">
@@ -154,7 +145,7 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
                 <li key={mode}><Check size={14} /> {m.game.modes[mode].name}</li>
               ))}
             </ul>
-            <Link className="btn btn-primary btn-lg btn-shine" href="/juego">{m.game.teaserCta} <ArrowRight size={18} /></Link>
+            <Link className="btn btn-primary btn-lg" href="/juego">{m.game.teaserCta} <ArrowRight size={18} /></Link>
           </div>
           <Link href="/juego" className="game-teaser-visual" aria-label={m.game.teaserCta}>
             <BodyFigure
@@ -187,7 +178,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="landing-section organ-showcase" aria-labelledby="showcase-title">
           <header data-animate>
-            <span className="eyebrow"><Microscope size={14} /> {l.libraryEyebrow}</span>
             <h2 id="showcase-title">{l.libraryTitle}</h2>
           </header>
           <ul className="showcase-grid">
@@ -205,7 +195,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="landing-section" id="para-quien">
           <header data-animate>
-            <span className="eyebrow"><UserRound size={14} /> {l.audienceEyebrow}</span>
             <h2>{l.audienceTitle}</h2>
           </header>
           <div className="audience-grid">
@@ -224,7 +213,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="landing-section steps-section" aria-labelledby="steps-title">
           <header data-animate>
-            <span className="eyebrow"><Brain size={14} /> {l.stepsEyebrow}</span>
             <h2 id="steps-title">{l.stepsTitle}</h2>
           </header>
           <ol className="steps">
@@ -240,7 +228,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="landing-section" id="planes">
           <header data-animate>
-            <span className="eyebrow"><ShieldCheck size={14} /> {l.plansEyebrow}</span>
             <h2>{l.plansTitle}</h2>
             <p>{l.plansLead}</p>
           </header>
@@ -256,7 +243,7 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
                   <ul>
                     {copy.perks.map((perk) => <li key={perk}><Check size={14} /> {perk}</li>)}
                   </ul>
-                  <Link className={`btn ${plan.highlight ? "btn-primary btn-shine" : "btn-outline"}`} href={user ? "/atlas?panel=plans" : "/registro"}>
+                  <Link className={`btn ${plan.highlight ? "btn-primary" : "btn-outline"}`} href={user ? "/atlas?panel=plans" : "/registro"}>
                     {plan.monthlyPrice === 0 ? l.startFree : format(m.plans.choose, { name: copy.name })}
                   </Link>
                 </article>
@@ -268,7 +255,6 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
 
         <section className="landing-section faq" id="preguntas">
           <header data-animate>
-            <span className="eyebrow">{l.faqEyebrow}</span>
             <h2>{l.faqTitle}</h2>
           </header>
           <div className="faq-list">
@@ -284,7 +270,7 @@ export function Landing({ user, m, content }: { user: SessionUser | null; m: Mes
         <section className="final-cta" data-animate>
           <h2>{l.finalTitle}</h2>
           <p>{l.finalLead}</p>
-          <Link className="btn btn-light btn-lg btn-shine" href={user ? "/dashboard" : "/registro"}>
+          <Link className="btn btn-light btn-lg" href={user ? "/dashboard" : "/registro"}>
             {user ? l.finalCtaUser : l.finalCta} <ArrowRight size={18} />
           </Link>
         </section>

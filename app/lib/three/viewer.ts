@@ -18,6 +18,8 @@ const MOTION_GROUP = "organ-motion";
 /** Camera distance used when the guided tour frames a single structure. */
 const FOCUS_DISTANCE = 6.4;
 const PLINTH_Y = -2.5;
+/** Pedestal por tema: claro sobre lienzo claro, pizarra sobre lienzo oscuro. */
+const PLINTH_COLORS = { light: 0xdfe7ed, dark: 0x2a4058 } as const;
 const PLINTH_TOP = PLINTH_Y + 0.17;
 /** Slightly above eye level, so the plinth reads as a disc the organ sits on
  *  rather than an edge-on band across the background. */
@@ -70,6 +72,8 @@ export class AnatomyViewer {
   private calloutEl: HTMLElement | null = null;
   private fadeTween: gsap.core.Tween | null = null;
   private disposed = false;
+  private themeObserver: MutationObserver | null = null;
+  private colorSchemeQuery: MediaQueryList | null = null;
 
   // Physiological motion: sampled each frame and blended in/out smoothly.
   private motionGroup: THREE.Group | null = null;
@@ -145,9 +149,22 @@ export class AnatomyViewer {
     canvas.addEventListener("pointerleave", this.onPointerLeave);
     canvas.addEventListener("keydown", this.onKeyDown);
 
+    this.syncTheme();
+    this.themeObserver = new MutationObserver(this.syncTheme);
+    this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    this.colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    this.colorSchemeQuery.addEventListener("change", this.syncTheme);
+
     this.resize();
     this.animate();
   }
+
+  /** Ajusta el pedestal al tema efectivo (`color-scheme` resuelto por CSS). */
+  private syncTheme = () => {
+    const dark = getComputedStyle(document.documentElement).colorScheme.includes("dark");
+    (this.plinth.material as THREE.MeshStandardMaterial).color.setHex(dark ? PLINTH_COLORS.dark : PLINTH_COLORS.light);
+    this.dirty = true;
+  };
 
   // ---------------------------------------------------------------- scene
 
@@ -176,7 +193,7 @@ export class AnatomyViewer {
 
     this.plinth = new THREE.Mesh(
       new THREE.CylinderGeometry(2.3, 2.48, 0.34, 56),
-      new THREE.MeshStandardMaterial({ color: 0xdfe7ed, roughness: 0.62, metalness: 0.04 }),
+      new THREE.MeshStandardMaterial({ color: PLINTH_COLORS.light, roughness: 0.62, metalness: 0.04 }),
     );
     this.plinth.position.y = PLINTH_Y;
     this.scene.add(this.plinth);
@@ -706,6 +723,8 @@ export class AnatomyViewer {
     this.resizeObserver.disconnect();
     this.intersectionObserver.disconnect();
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.themeObserver?.disconnect();
+    this.colorSchemeQuery?.removeEventListener("change", this.syncTheme);
 
     const canvas = this.renderer.domElement;
     canvas.removeEventListener("pointerdown", this.onPointerDown);
