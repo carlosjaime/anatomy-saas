@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | 9 especímenes GLB | `public/models/*.glb` | Generados con **Tripo** (metadatos `tripo_node_*`, `tripo_material_*`), optimizados con glTF-Transform 4.4.2 | Derechos comerciales de Tripo (plan de pago), **confirmados por el propietario** el 2026-10-20 | ✅ Confirmada |
 | 9 especímenes LOD1 | `public/models/lod1/*.glb` | Derivados de los anteriores con `scripts/build-model-lods.mjs` | Hereda la de los originales | ✅ Confirmada |
-| Ilustraciones por órgano | `public/anatomy/<órgano>/*.webp` | Sin registro de procedencia en el repositorio | **Desconocida** | ⚠️ Verificar |
+| Ilustraciones por órgano | `public/anatomy/<órgano>/*.webp` | Propiedad del titular del proyecto | Derechos propios, **confirmados por el propietario** el 2026-10-20 | ✅ Confirmada |
 | Decodificadores Draco/Basis | `public/draco`, `public/basis` | Google Draco / Binomial Basis Universal | Apache 2.0 | ✅ |
 
 ### Tripo
@@ -44,4 +44,5 @@ La licencia resuelve el riesgo legal, no el de precisión: siguen siendo modelos
 | Fecha | Recurso | Cambio |
 |---|---|---|
 | 2026-10-20 | `public/models/*.glb` | El propietario confirma derechos comerciales de Tripo. |
+| 2026-10-20 | `public/anatomy/*` | El propietario confirma que las ilustraciones son de su propiedad. |
 | 2026-10-20 | `public/models/lod1/*` | Generados desde los GLB originales: weld, simplify 25 % (error 0.0005), texturas a 1024², meshopt. Deriva de caja envolvente ≤ 0.07 %. |

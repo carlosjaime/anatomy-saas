@@ -43,7 +43,7 @@ Atlas en español de México, con nomenclatura clínica, precios en MXN y correl
 
 ## Evidence on Hand
 
-- Ilustraciones por órgano en `public/anatomy/<organo>/*.webp` y modelos en `public/models/*.glb`.
+- Ilustraciones por órgano en `public/anatomy/<organo>/*.webp` (propiedad del titular) y modelos en `public/models/*.glb` (Tripo, derechos comerciales confirmados).
 - No existen testimonios, instituciones asociadas, certificaciones ni estadísticas de uso. **No se deben inventar.**
 
 ## Product Principles

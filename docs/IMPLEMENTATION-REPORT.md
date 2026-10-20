@@ -71,7 +71,6 @@ Observación: con 3 workers y render WebGL por software, algunas pruebas del vis
 | Pendiente | Motivo |
 |---|---|
 | Probar PayPal Sandbox de punta a punta y luego Live | Red bloqueada en este entorno; requiere credenciales del propietario |
-| Confirmar la licencia de las ilustraciones (`public/anatomy`) | Sin registro de procedencia; la de Tripo ya está confirmada |
 | Catálogo segmentado (Z-Anatomy): esqueleto, músculos, nervios, vasos, sistemas completos; ocultar/aislar/opacidad por estructura; modo de identificación | Fase aparte decidida por el propietario; requiere pipeline de Blender y revisión anatómica |
 | Plan Institucional (organizaciones, licencias, panel docente, CFDI) | No existía; se bloqueó la venta en lugar de simularlo |
 | Colecciones, presentaciones, marcadores | No implementado en esta iteración |
@@ -80,7 +79,7 @@ Observación: con 3 workers y render WebGL por software, algunas pruebas del vis
 
 ## 8. Antes del lanzamiento
 
-1. Confirmar (o sustituir) la licencia de las ilustraciones y guardar fuera del repositorio la evidencia de la licencia de Tripo.
+1. Guardar fuera del repositorio la evidencia de derechos de los modelos (Tripo) y de las ilustraciones; ambas licencias están confirmadas por el propietario.
 2. PayPal Sandbox: `paypal:setup`, `--verify`, webhook registrado y la lista de escenarios de `PAYPAL-INTEGRATION.md`; después, lo mismo en Live.
 3. Variables de producción: `DATABASE_URL`, `APP_URL`, `PAYPAL_*`, `RESEND_API_KEY`, `EMAIL_FROM`.
 4. Revisión legal: términos, aviso de privacidad, aviso educativo (no sustituye consejo médico), facturación CFDI.
