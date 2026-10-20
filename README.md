@@ -44,6 +44,7 @@ y suscripciones en pesos mexicanos para estudiantes de medicina, residentes, mé
 - [Variables de entorno](#variables-de-entorno)
 - [Scripts](#scripts)
 - [Arquitectura](#arquitectura)
+- [Documentación](#documentación)
 - [Pruebas](#pruebas)
 - [Despliegue](#despliegue)
 - [Seguridad](#seguridad)
@@ -61,18 +62,19 @@ un artículo en la enciclopedia. El progreso se registra en un panel de estudio,
 la orientación espacial con nomenclatura clínica real.
 
 La plataforma está pensada para México y Latinoamérica: precios en **MXN con IVA incluido**, cobros con
-**Mercado Pago** y una interfaz **bilingüe** (español de México e inglés de EUA) que cambia de idioma en tiempo real.
+**PayPal** y una interfaz **bilingüe** (español de México e inglés de EUA) que cambia de idioma en tiempo real.
 
 ## Características
 
 | | Funcionalidad | Detalle |
 |:-:|---|---|
-| 🫀 | **Atlas 3D** | 9 especímenes interactivos con estructuras señaladas, corte, aislamiento, malla y comparación. Recorrido guiado estructura por estructura y fisiología animada (latido a 72 lpm, respiración, peristalsis…). |
+| 🫀 | **Atlas 3D** | 9 especímenes interactivos con estructuras señaladas, corte, aislamiento, malla, comparación, vistas anterior/posterior/laterales y captura PNG. Nivel de detalle ligero (LOD1) en móviles. Recorrido guiado y fisiología animada (latido a 72 lpm, respiración, peristalsis…). Los especímenes son modelos ilustrativos: ver [docs/ANATOMY-MODELS.md](docs/ANATOMY-MODELS.md). |
 | 📚 | **Enciclopedia** | Artículos de 7 secciones con correlación clínica, búsqueda sin acentos (`⌘K`), glosario A–Z y tarjetas de estudio con repaso de pendientes. |
 | 🧩 | **Reto anatómico** | Arrastra 16 órganos a su región clínica en **vista anterior y posterior**, con giro 3D del cuerpo. Modos Aprendizaje, Examen y Contrarreloj; dificultad Guiada o Experto, combos, pistas y récords. |
 | 📈 | **Panel de estudio** | Dominio por órgano, precisión, racha, actividad de 14 días, recomendación del siguiente tema y récord del reto. |
-| 💳 | **Suscripciones** | Planes en MXN, 7 días de prueba gratis, checkout alojado por Mercado Pago, cambio de plan sin cobros duplicados y cancelación con acceso hasta el fin del periodo. |
+| 💳 | **Suscripciones** | PayPal Subscriptions: planes en MXN, 7 días de prueba gratis, aprobación alojada por PayPal, webhooks verificados e idempotentes, pausa/reactivación, cambio de plan sin cobros duplicados, cancelación con acceso hasta el fin del periodo e historial de pagos. |
 | 🔐 | **Cuentas** | Registro, inicio de sesión, verificación de correo y recuperación de contraseña con correos transaccionales. |
+| 🌓 | **Tema claro y oscuro** | Sigue al sistema o se fija en Mi cuenta; tokens con contraste AA verificado ([DESIGN.md](DESIGN.md)). |
 | 🌐 | **Bilingüe en vivo** | es-MX / en-US con fundido de salida y entrada, sin recargar ni perder el estado. Traduce también los errores de la API, los correos y los metadatos. |
 | ✨ | **Micro-interacciones** | Transiciones de página, barra de progreso, toasts, modales de confirmación, esqueletos de carga, confeti y Animate.css. Todo respeta `prefers-reduced-motion`. |
 
@@ -113,7 +115,7 @@ siempre nombrando la región donde se soltó.
 | UI | React 19, TypeScript estricto, Tailwind CSS 4 + CSS propio con tokens de diseño, [lucide-react](https://lucide.dev) |
 | 3D y animación | [Three.js](https://threejs.org) (glTF + Draco/Basis), [GSAP](https://gsap.com), [Animate.css](https://animate.style) (subconjunto generado) |
 | Datos | [Drizzle ORM](https://orm.drizzle.team) sobre libSQL / [Turso](https://turso.tech) (Node, Vercel) o Cloudflare D1 (Workers), con migraciones versionadas en tiempo de ejecución |
-| Pagos y correo | [Mercado Pago Suscripciones](https://www.mercadopago.com.mx/developers) · [Resend](https://resend.com) |
+| Pagos y correo | [PayPal Subscriptions](https://developer.paypal.com/docs/subscriptions/) · [Resend](https://resend.com) |
 | Calidad | ESLint, `node:test` para pruebas unitarias y SSR, [Playwright](https://playwright.dev) para E2E |
 
 ## Inicio rápido
@@ -130,7 +132,7 @@ npm run dev:next
 Abre <http://localhost:3000>. En desarrollo no hace falta configurar nada:
 
 - La base de datos es un archivo SQLite local (`.data/atlas.db`) y el esquema se crea solo.
-- Los pagos usan un **proveedor de demostración** que autoriza al instante.
+- Los pagos usan un **proveedor de demostración** que aprueba al instante (sin credenciales de PayPal).
 - Los correos (verificación y recuperación) se **imprimen en la consola** del servidor.
 
 Para trabajar con el runtime de Cloudflare Workers usa `npm run dev`, que levanta vinext con el binding D1 local `DB`.
@@ -144,22 +146,25 @@ cualquier integración que no esté configurada.
 |---|:-:|---|
 | `DATABASE_URL` | ✅ (Vercel/Node) | URL de libSQL, por ejemplo Turso. En Cloudflare se usa el binding D1 `DB`. |
 | `DATABASE_AUTH_TOKEN` | Según el proveedor | Token de acceso de la base libSQL. |
-| `APP_URL` | ✅ | URL pública para los enlaces de correo y el regreso desde Mercado Pago. |
-| `MERCADOPAGO_ACCESS_TOKEN` | Para cobrar | `TEST-…` en sandbox, `APP_USR-…` en producción. Sin él, los pagos responden 503. |
-| `MERCADOPAGO_WEBHOOK_SECRET` | Para cobrar | Clave para validar la firma HMAC-SHA256 de los webhooks. |
+| `APP_URL` | ✅ | URL pública para los enlaces de correo y el retorno desde PayPal. |
+| `PAYPAL_CLIENT_ID` · `PAYPAL_CLIENT_SECRET` | Para cobrar | Credenciales REST (solo servidor). Sin ellas, los pagos responden 503 en producción. |
+| `PAYPAL_ENVIRONMENT` | Para cobrar | `sandbox` (predeterminado) o `live`. |
+| `PAYPAL_WEBHOOK_ID` | Para cobrar | Id del webhook registrado; sin él el webhook responde 503. |
+| `PAYPAL_PLAN_IDS` | Para cobrar | JSON con los ids de planes de PayPal; lo genera `npm run paypal:setup`. |
 | `RESEND_API_KEY` | Para enviar correos | Sin ella, los correos no se envían en producción. |
 | `EMAIL_FROM` | Para enviar correos | Remitente con dominio verificado en Resend. |
 | `NEXT_PUBLIC_SITE_URL` | Opcional | Fuerza el origen de las URLs absolutas de Open Graph. |
 | `ATLAS_E2E` | — | Solo en local/CI. Ver [Pruebas](#pruebas). |
 
 <details>
-<summary><b>Configurar Mercado Pago</b></summary>
+<summary><b>Configurar PayPal</b></summary>
 
-1. Crea una aplicación en el panel de desarrolladores de Mercado Pago y copia el *access token* (`TEST-…` para pruebas).
-2. En **Webhooks**, registra `https://tu-dominio.mx/api/billing/webhook`, activa los eventos de **Planes y suscripciones**
-   y copia la clave secreta en `MERCADOPAGO_WEBHOOK_SECRET`.
-3. Define `APP_URL`, `RESEND_API_KEY` y `EMAIL_FROM`.
-4. Prueba el flujo completo con usuarios de prueba antes de usar credenciales de producción.
+1. Crea una app REST en developer.paypal.com (Sandbox) y copia Client ID y Secret.
+2. `npm run paypal:setup` crea el producto y los planes desde `app/lib/plans.ts` e imprime `PAYPAL_PLAN_IDS`;
+   `npm run paypal:setup -- --verify` los compara con el catálogo.
+3. Registra `https://tu-dominio.mx/api/billing/webhooks/paypal` (eventos `BILLING.SUBSCRIPTION.*` y
+   `PAYMENT.SALE.COMPLETED/REFUNDED/REVERSED`) y copia su id en `PAYPAL_WEBHOOK_ID`.
+4. Prueba el flujo completo en sandbox antes de pasar a `PAYPAL_ENVIRONMENT=live`. Guía: [docs/PAYPAL-INTEGRATION.md](docs/PAYPAL-INTEGRATION.md).
 
 </details>
 
@@ -177,6 +182,9 @@ cualquier integración que no esté configurada.
 | `npm run test:e2e` | Suite Playwright contra el build de producción (requiere `build:next`). |
 | `npm run test:e2e:full` | `build:next` + suite E2E completa. |
 | `npm run build:animations` | Regenera `app/styles/animate-subset.css` desde `animate.css`. |
+| `npm run models:lod` | Regenera los modelos ligeros `public/models/lod1` y su reporte. |
+| `npm run paypal:setup` | Crea (o con `-- --verify`, verifica) producto y planes de PayPal. |
+| `npm run design:detect` | Detector de Impeccable sobre `app/` (también acepta una URL). |
 | `npm run db:generate` · `npm run db:studio` | Herramientas de Drizzle Kit. |
 
 ## Arquitectura
@@ -202,7 +210,7 @@ flowchart LR
     AUTH & BILL & PROG --> ORM["Drizzle ORM"]
     ORM --> LIBSQL[("libSQL / Turso")]
     ORM --> D1[("Cloudflare D1")]
-    BILL <-->|API + webhook HMAC| MP["Mercado Pago"]
+    BILL <-->|OAuth2 + webhooks verificados| PP["PayPal"]
     AUTH --> MAIL["Resend"]
 ```
 
@@ -213,7 +221,7 @@ flowchart LR
 - **Contenido como props, no como bundle.** El servidor envía al cliente solo el idioma y el contenido activos, así que
   el JavaScript descargado no incluye textos médicos de ningún idioma.
 - **El plan se deriva, no se guarda.** El plan de un usuario se calcula a partir de sus suscripciones. Su estado solo
-  cambia con datos consultados a la API de Mercado Pago, ya sea por webhook firmado o por sincronización al regresar
+  cambia con datos consultados a la API de PayPal, ya sea por webhook verificado o por reconciliación al regresar
   del checkout.
 - **Un código, dos runtimes.** Las rutas trabajan sobre `Request` y `Response` estándar y la capa de datos elige
   libSQL o D1 según el entorno, sin bifurcar la lógica.
@@ -239,6 +247,17 @@ worker/                  Entrada de Cloudflare Workers
 
 </details>
 
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| [PRODUCT.md](PRODUCT.md) · [DESIGN.md](DESIGN.md) | Verdad de producto y sistema visual (tokens, contraste, reglas) |
+| [docs/UI-UX-AUDIT.md](docs/UI-UX-AUDIT.md) | Auditoría Impeccable antes/después |
+| [docs/ANATOMY-MODELS.md](docs/ANATOMY-MODELS.md) · [docs/ANATOMY-LICENSES.md](docs/ANATOMY-LICENSES.md) | Diagnóstico, LOD y licencias de modelos |
+| [docs/PAYPAL-INTEGRATION.md](docs/PAYPAL-INTEGRATION.md) | Arquitectura, endpoints, webhooks y puesta en marcha |
+| [docs/SUBSCRIPTION-PLANS.md](docs/SUBSCRIPTION-PLANS.md) · [docs/COST-BENEFIT-ANALYSIS.md](docs/COST-BENEFIT-ANALYSIS.md) | Planes, propuesta de precios y costos |
+| [docs/IMPLEMENTATION-REPORT.md](docs/IMPLEMENTATION-REPORT.md) | Qué se hizo, pruebas y pendientes de lanzamiento |
+
 ## Pruebas
 
 ```bash
@@ -260,7 +279,7 @@ de desbordes a 390 y 320 px. **Cualquier excepción o `console.error` en el nave
 
 | Plataforma | Cómo |
 |---|---|
-| **Vercel** | `vercel.json` usa `npm run build:next`. Define `DATABASE_URL` (y `DATABASE_AUTH_TOKEN`), `APP_URL`, y las variables de Mercado Pago y Resend. Sin base de datos, la app funciona en modo invitado y las rutas de cuenta responden 503 con un mensaje claro. |
+| **Vercel** | `vercel.json` usa `npm run build:next`. Define `DATABASE_URL` (y `DATABASE_AUTH_TOKEN`), `APP_URL`, y las variables de PayPal y Resend. Sin base de datos, la app funciona en modo invitado y las rutas de cuenta responden 503 con un mensaje claro. |
 | **Cloudflare Workers** | `npm run build` genera el worker con vinext. El binding D1 `DB` se declara en la configuración del proyecto y el esquema se crea en el primer acceso. |
 
 ## Seguridad
@@ -271,7 +290,8 @@ de desbordes a 390 y 320 px. **Cualquier excepción o `console.error` en el nave
 - Mutaciones solo en JSON y del mismo origen (defensa CSRF) con límite de tamaño del cuerpo.
 - Bloqueo de 15 minutos tras 5 intentos fallidos, mensajes que no revelan si un correo existe y redirecciones
   posteriores al inicio de sesión restringidas a rutas internas.
-- Webhooks de pago verificados con HMAC-SHA256. Los datos de tarjeta nunca pasan por la aplicación.
+- Webhooks de PayPal verificados con `verify-webhook-signature` (bytes originales), idempotentes por id de evento e insensibles al orden. Los datos de tarjeta nunca pasan por la aplicación.
+- Operaciones de facturación limitadas por usuario y solo sobre suscripciones propias.
 
 ## Internacionalización
 
@@ -296,7 +316,10 @@ Los diccionarios están tipados: cualquier idioma nuevo debe cumplir el tipo `Me
 ## Hoja de ruta
 
 - [x] Atlas 3D, enciclopedia y panel de estudio
-- [x] Suscripciones con Mercado Pago y prueba gratis
+- [x] Suscripciones con PayPal, prueba gratis, pausa e historial de pagos
+- [x] Tema claro/oscuro y modelos LOD para móviles
+- [ ] Validación en PayPal Sandbox real y paso a Live
+- [ ] Catálogo segmentado con Z-Anatomy (CC BY-SA 4.0)
 - [x] Interfaz bilingüe en tiempo real
 - [x] Reto anatómico con vista anterior y posterior
 - [ ] Récords del reto sincronizados en la nube y tablas por institución
