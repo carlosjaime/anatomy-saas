@@ -93,6 +93,7 @@ const esMX = {
     openEncyclopedia: "Abrir la enciclopedia",
   },
   viewer: {
+    modelNotice: "Modelo ilustrativo de forma general; las estructuras señaladas son referencias aproximadas.",
     region: "Visor interactivo de {organ}",
     canvas: "Modelo anatómico 3D interactivo. Arrastra para rotar, desplázate para hacer zoom y toca un punto para leer sobre esa estructura.",
     toolbar: "Herramientas del visor 3D",

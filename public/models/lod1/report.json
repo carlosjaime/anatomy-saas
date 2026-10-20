@@ -1,0 +1,114 @@
+{
+  "ratio": 0.25,
+  "texture": 1024,
+  "models": [
+    {
+      "model": "brain",
+      "lod0": {
+        "triangles": 377692,
+        "bytes": 2570592
+      },
+      "lod1": {
+        "triangles": 94421,
+        "bytes": 788188
+      },
+      "bboxDrift": 0.00021
+    },
+    {
+      "model": "eyeball",
+      "lod0": {
+        "triangles": 320250,
+        "bytes": 2203616
+      },
+      "lod1": {
+        "triangles": 80062,
+        "bytes": 688052
+      },
+      "bboxDrift": 0.00006
+    },
+    {
+      "model": "heart",
+      "lod0": {
+        "triangles": 386597,
+        "bytes": 3321148
+      },
+      "lod1": {
+        "triangles": 96634,
+        "bytes": 803760
+      },
+      "bboxDrift": 0.00024
+    },
+    {
+      "model": "intestine",
+      "lod0": {
+        "triangles": 308748,
+        "bytes": 1980780
+      },
+      "lod1": {
+        "triangles": 77187,
+        "bytes": 614748
+      },
+      "bboxDrift": 0.00037
+    },
+    {
+      "model": "kidneys",
+      "lod0": {
+        "triangles": 327452,
+        "bytes": 2190764
+      },
+      "lod1": {
+        "triangles": 81862,
+        "bytes": 648088
+      },
+      "bboxDrift": 0.00006
+    },
+    {
+      "model": "liver",
+      "lod0": {
+        "triangles": 345526,
+        "bytes": 2660384
+      },
+      "lod1": {
+        "triangles": 109551,
+        "bytes": 1012308
+      },
+      "bboxDrift": 0.00037
+    },
+    {
+      "model": "lungs",
+      "lod0": {
+        "triangles": 350772,
+        "bytes": 4455976
+      },
+      "lod1": {
+        "triangles": 87692,
+        "bytes": 894984
+      },
+      "bboxDrift": 0.00014
+    },
+    {
+      "model": "pancreas",
+      "lod0": {
+        "triangles": 346596,
+        "bytes": 4848556
+      },
+      "lod1": {
+        "triangles": 86648,
+        "bytes": 1028720
+      },
+      "bboxDrift": 0.00014
+    },
+    {
+      "model": "skin",
+      "lod0": {
+        "triangles": 356333,
+        "bytes": 5789160
+      },
+      "lod1": {
+        "triangles": 175575,
+        "bytes": 1779068
+      },
+      "bboxDrift": 0.0007
+    }
+  ]
+}

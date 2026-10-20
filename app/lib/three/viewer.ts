@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import gsap from "gsap";
 import type { Hotspot } from "../anatomy-data";
 import { AnatomyAssetManager, type LoadedOrgan } from "./loaders";
+import { modelUrlForDetail } from "./lod";
 import { HotspotLayer } from "./hotspots";
 import { IDENTITY_SAMPLE, sampleMotion, type MotionProfile, type MotionSample } from "./motion";
 
@@ -18,6 +19,7 @@ const MOTION_GROUP = "organ-motion";
 /** Camera distance used when the guided tour frames a single structure. */
 const FOCUS_DISTANCE = 6.4;
 const PLINTH_Y = -2.5;
+
 /** Pedestal por tema: claro sobre lienzo claro, pizarra sobre lienzo oscuro. */
 const PLINTH_COLORS = { light: 0xdfe7ed, dark: 0x2a4058 } as const;
 const PLINTH_TOP = PLINTH_Y + 0.17;
@@ -60,6 +62,7 @@ export class AnatomyViewer {
   private loadRequest = 0;
 
   private basePixelRatio: number;
+  private readonly lowDetail: boolean;
 
   private autoRotateWanted = true;
   private interactionUntil = 0;
@@ -90,6 +93,8 @@ export class AnatomyViewer {
     this.callbacks = callbacks;
 
     const lowPower = window.matchMedia("(max-width: 780px)").matches || (navigator.hardwareConcurrency ?? 8) < 6;
+    const saveData = Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
+    this.lowDetail = lowPower || saveData;
     // Fixed, decided once. A dynamic controller used to live here and it was a
     // net negative: frame *intervals* are vsync-quantised, so a brief hitch read
     // as GPU load, dropped the buffer, and — because a vsync-locked 16.7ms never
@@ -263,7 +268,7 @@ export class AnatomyViewer {
   // ---------------------------------------------------------------- organs
 
   prefetch(url: string) {
-    this.assets.prefetch(url);
+    this.assets.prefetch(modelUrlForDetail(url, this.lowDetail));
   }
 
   async setOrgan(modelUrl: string, hotspots: Hotspot[], accent: string, motion: MotionProfile | null = null) {
@@ -298,8 +303,15 @@ export class AnatomyViewer {
 
     let organ: LoadedOrgan;
     try {
-      organ = await this.assets.load(modelUrl, (progress) => {
+      const onProgress = (progress: number) => {
         if (request === this.loadRequest) this.callbacks.onLoading(true, progress);
+      };
+      const preferred = modelUrlForDetail(modelUrl, this.lowDetail);
+      // Si falta el LOD ligero se recurre al modelo completo en lugar de fallar.
+      organ = await this.assets.load(preferred, onProgress).catch((error: unknown) => {
+        if (preferred === modelUrl) throw error;
+        console.warn("[viewer] LOD1 no disponible, se carga el modelo completo", preferred, error);
+        return this.assets.load(modelUrl, onProgress);
       });
     } catch (error) {
       if (request === this.loadRequest) this.callbacks.onLoading(false, 0);

@@ -89,6 +89,7 @@ const enUS: Messages = {
     openEncyclopedia: "Open the encyclopedia",
   },
   viewer: {
+    modelNotice: "Illustrative model of overall shape; marked structures are approximate references.",
     region: "Interactive {organ} viewer",
     canvas: "Interactive 3D anatomical model. Drag to rotate, scroll to zoom and tap a point to read about that structure.",
     toolbar: "3D viewer tools",

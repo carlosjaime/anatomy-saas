@@ -22,7 +22,8 @@
     "test:e2e": "playwright test",
     "test:e2e:full": "npm run build:next && playwright test",
     "design:detect": "impeccable detect app",
-    "paypal:setup": "node --import tsx scripts/paypal-setup.ts"
+    "paypal:setup": "node --import tsx scripts/paypal-setup.ts",
+    "models:lod": "node scripts/build-model-lods.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",

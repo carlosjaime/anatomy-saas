@@ -628,7 +628,7 @@ button:focus-visible, input:focus-visible, canvas:focus-visible, a:focus-visible
 .key-facts { margin: 0; display: flex; flex-direction: column; gap: 11px; }
 .key-facts > div { display: grid; grid-template-columns: 105px 1fr; gap: 8px; align-items: baseline; }
 .key-facts dt { display: flex; gap: 8px; font: 500 13px var(--font-serif), serif; }
-.key-facts dt span { color: var(--coral); width: 16px; }
+.key-facts dt svg { flex: none; margin-top: 2px; color: var(--clinical); }
 .key-facts dd { margin: 0; color: var(--muted); font: 500 12px/1.35 var(--font-serif), serif; }
 .medical-note, .fun-note { margin-top: 15px; display: flex; gap: 9px; padding: 10px; border-radius: 12px; }
 .medical-note { background: rgba(142,109,197,.065); color: #6d568f; }
@@ -1302,7 +1302,6 @@ a { color: var(--clinical-ink); }
 .high-yield li:before { content: ""; position: absolute; left: 2px; top: 7px; width: 6px; height: 6px; border-radius: 2px; background: #4f5bd5; transform: rotate(45deg); }
 .medical-note { background: rgb(var(--clinical-rgb) / .07) !important; color: var(--clinical-ink) !important; }
 .fun-note { background: rgba(242,163,59,.1) !important; color: var(--warning-ink) !important; }
-.key-facts dt span { color: var(--clinical) !important; }
 .learning-cards em, .info-panel em { color: var(--clinical) !important; }
 .learning-cards li:before { content: "●" !important; color: var(--coral) !important; font-size: 7px; vertical-align: 2px; }
 .plans-disclaimer a { color: var(--clinical-ink); font-weight: 700; }
@@ -2293,3 +2292,5 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 .segmented button.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(10 30 50 / .12); }
 .account-prefs { display: flex; flex-direction: column; gap: 10px; }
 .account-prefs h3 { margin: 0; font: 600 13px var(--font-sans), sans-serif; color: var(--muted); }
+.model-notice { margin: 12px 0 0; display: flex; gap: 8px; align-items: flex-start; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.model-notice svg { flex: none; margin-top: 2px; }

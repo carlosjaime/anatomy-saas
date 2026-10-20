@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import {
+  Activity,
   ArrowRight,
   BookOpen,
   BrainCircuit,
@@ -12,19 +13,24 @@ import {
   CircleHelp,
   Compass,
   CreditCard,
+  Droplets,
   FileText,
   GraduationCap,
   Heart,
+  Info,
   LayoutDashboard,
   LayoutGrid,
   Library,
   Lightbulb,
   Lock,
   LogOut,
+  MapPin,
   Microscope,
   Play,
   Puzzle,
   Route,
+  Ruler,
+  Scale,
   Search,
   Share2,
   Sparkles,
@@ -32,6 +38,7 @@ import {
   Stethoscope,
   Target,
   User,
+  Workflow,
   X,
 } from "lucide-react";
 import { OrganViewer, type OrganViewerHandle } from "./OrganViewer";
@@ -520,13 +527,14 @@ function AtlasWorkspace({ user, initialOrganId = "heart", initialOverlay = null 
               <div className="info-body">
                 <h2 data-reveal>{m.info.keyFacts}</h2>
                 <dl className="key-facts">
-                  <div data-reveal><dt><span>◇</span> {m.info.size}</dt><dd>{organ.size}</dd></div>
-                  <div data-reveal><dt><span>♙</span> {m.info.weight}</dt><dd>{organ.weight}</dd></div>
-                  <div data-reveal><dt><span>⌁</span> {m.info.daily}</dt><dd>{organ.dailyFact}</dd></div>
-                  <div data-reveal><dt><span>⌖</span> {m.info.location}</dt><dd>{organ.location}</dd></div>
-                  <div data-reveal><dt><span>❋</span> {m.info.bloodSupply}</dt><dd>{organ.bloodSupply}</dd></div>
-                  <div data-reveal><dt><span>◈</span> {m.info.function}</dt><dd>{organ.function}</dd></div>
+                  <div data-reveal><dt><Ruler size={14} aria-hidden="true" /> {m.info.size}</dt><dd>{organ.size}</dd></div>
+                  <div data-reveal><dt><Scale size={14} aria-hidden="true" /> {m.info.weight}</dt><dd>{organ.weight}</dd></div>
+                  <div data-reveal><dt><Activity size={14} aria-hidden="true" /> {m.info.daily}</dt><dd>{organ.dailyFact}</dd></div>
+                  <div data-reveal><dt><MapPin size={14} aria-hidden="true" /> {m.info.location}</dt><dd>{organ.location}</dd></div>
+                  <div data-reveal><dt><Droplets size={14} aria-hidden="true" /> {m.info.bloodSupply}</dt><dd>{organ.bloodSupply}</dd></div>
+                  <div data-reveal><dt><Workflow size={14} aria-hidden="true" /> {m.info.function}</dt><dd>{organ.function}</dd></div>
                 </dl>
+                <p className="model-notice" data-reveal><Info size={14} aria-hidden="true" /> {m.viewer.modelNotice}</p>
                 <div className="medical-note" data-reveal><Stethoscope size={16} /><p><b>{m.info.medical}</b>{organ.medical}</p></div>
                 <section className="high-yield" data-reveal aria-labelledby="high-yield-title">
                   <h2 id="high-yield-title"><Lightbulb size={13} /> {m.info.highYield}</h2>
