@@ -19,8 +19,6 @@ const PLAN_IDS = JSON.stringify({
   "student:annual": "P-STUDENTANNUAL001",
   "pro:monthly": "P-PROMONTHLY00001",
   "pro:annual": "P-PROANNUAL000001",
-  "institution:monthly": "P-INSTMONTHLY0001",
-  "institution:annual": "P-INSTANNUAL00001",
 });
 
 // `NODE_ENV` es de solo lectura en los tipos de Next; aquí se manipula a propósito.
@@ -86,6 +84,7 @@ test("plan ids must cover every paid plan and cycle with well-formed ids", () =>
   delete partial["pro:annual"];
   assert.equal(parsePlanIds(JSON.stringify(partial)), null);
   assert.equal(parsePlanIds(JSON.stringify({ ...JSON.parse(PLAN_IDS), "free:monthly": "P-FREEPLAN00001" })), null);
+  assert.equal(parsePlanIds(JSON.stringify({ ...JSON.parse(PLAN_IDS), "institution:monthly": "P-INSTMONTHLY0001" })), null, "not sold online yet");
   assert.equal(parsePlanIds(JSON.stringify({ ...JSON.parse(PLAN_IDS), "pro:monthly": "javascript:alert(1)" })), null);
   assert.equal(parsePlanIds("{not json"), null);
   assert.equal(parsePlanIds(undefined), null);

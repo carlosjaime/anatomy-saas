@@ -1,7 +1,7 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 import type { Database } from "../../../../db";
 import { billingTransactions, subscriptions, users, type BillingTransactionRow, type SubscriptionRow } from "../../../../db/schema";
-import { billedAmount, CURRENCY, isBillingCycle, isPaidPlanId, monthlyEquivalent, planById, PLANS, type BillingCycle, type PaidPlanId } from "../../plans";
+import { billedAmount, CURRENCY, isBillingCycle, isPaidPlanId, isSelfServePlanId, monthlyEquivalent, planById, SELF_SERVE_PLAN_IDS, type BillingCycle, type PaidPlanId } from "../../plans";
 import { billingConfig } from "../config";
 import { DemoBillingProvider } from "./demo";
 import { TRIAL_DAYS, planGrantedBy } from "./entitlement";
@@ -76,7 +76,7 @@ export async function startCheckout(
   urls: CheckoutUrls,
   now = Date.now(),
 ): Promise<CheckoutResult> {
-  if (!isPaidPlanId(plan)) throw new BillingError("invalid_plan");
+  if (!isSelfServePlanId(plan)) throw new BillingError("invalid_plan");
   if (!isBillingCycle(cycle)) throw new BillingError("invalid_cycle");
   if (!user.emailVerified) throw new BillingError("email_unverified");
 
@@ -291,7 +291,7 @@ export async function reviseSubscription(
   urls: CheckoutUrls,
   now = Date.now(),
 ): Promise<{ approvalUrl: string }> {
-  if (!isPaidPlanId(plan)) throw new BillingError("invalid_plan");
+  if (!isSelfServePlanId(plan)) throw new BillingError("invalid_plan");
   if (!isBillingCycle(cycle)) throw new BillingError("invalid_cycle");
   const row = await ownedManageable(db, provider, userId, subscriptionId);
   const fresh = (await syncSubscription(db, provider, row.id, { expectedUserId: userId, now })) ?? row;
@@ -306,7 +306,7 @@ export async function reviseSubscription(
 // ---------------------------------------------------------------- transactions
 
 /** Importes válidos por periodo en centavos para cualquier plan y ciclo. */
-const VALID_AMOUNTS = new Set(PLANS.filter((plan) => plan.id !== "free").flatMap((plan) => [billedAmount(plan.id, "monthly") * 100, billedAmount(plan.id, "annual") * 100]));
+const VALID_AMOUNTS = new Set(SELF_SERVE_PLAN_IDS.flatMap((plan) => [billedAmount(plan, "monthly") * 100, billedAmount(plan, "annual") * 100]));
 
 /**
  * Registra (o actualiza) una transacción del procesador. Idempotente por id.

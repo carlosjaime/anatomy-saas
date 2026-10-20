@@ -173,7 +173,7 @@ test("email tokens are single-use, purpose-bound and expire", async () => {
   assert.equal(await consumeEmailToken(db, fresh, "reset", now), null, "single use");
 });
 
-async function activePlan(plan: "student" | "pro" | "institution" = "pro", cycle: "monthly" | "annual" = "monthly", now = Date.UTC(2026, 9, 1)) {
+async function activePlan(plan: "student" | "pro" = "pro", cycle: "monthly" | "annual" = "monthly", now = Date.UTC(2026, 9, 1)) {
   const ctx = await setup();
   await markEmailVerified(ctx.db, (await sessionUser(ctx.db, ctx.token)).id);
   const checkout = await startCheckout(ctx.db, ctx.provider, await sessionUser(ctx.db, ctx.token), plan, cycle, URLS, now);
@@ -187,6 +187,7 @@ test("checkout validates plan and cycle from untrusted input", async () => {
   await markEmailVerified(db, (await sessionUser(db, token)).id);
   const user = await sessionUser(db, token);
   await assert.rejects(startCheckout(db, provider, user, "hacker", "monthly", URLS), (e: unknown) => e instanceof BillingError && e.code === "invalid_plan");
+  await assert.rejects(startCheckout(db, provider, user, "institution", "annual", URLS), (e: unknown) => e instanceof BillingError && e.code === "invalid_plan", "seat management not built yet");
   await assert.rejects(startCheckout(db, provider, user, "pro", "weekly", URLS), (e: unknown) => e instanceof BillingError && e.code === "invalid_cycle");
   assert.equal(provider.created.length, 0, "nothing reaches the processor");
 });
@@ -218,9 +219,13 @@ test("the processor's plan id wins over the reference after an approved revision
   const { db, token, provider, id, now } = await activePlan("pro", "annual");
   const userId = (await sessionUser(db, token, now)).id;
   await assert.rejects(
-    reviseSubscription(db, provider, userId, id, "institution", "annual", URLS, now),
+    reviseSubscription(db, provider, userId, id, "pro", "monthly", URLS, now),
     (e: unknown) => e instanceof BillingError && e.code === "invalid_transition",
-    "upgrades never go through a revision",
+    "a pricier per-month option never goes through a revision",
+  );
+  await assert.rejects(
+    reviseSubscription(db, provider, userId, id, "institution", "annual", URLS, now),
+    (e: unknown) => e instanceof BillingError && e.code === "invalid_plan",
   );
   const { approvalUrl } = await reviseSubscription(db, provider, userId, id, "student", "annual", URLS, now);
   assert.match(approvalUrl, /revise/);

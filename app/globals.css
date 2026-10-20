@@ -2294,3 +2294,4 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 .account-prefs h3 { margin: 0; font: 600 13px var(--font-sans), sans-serif; color: var(--muted); }
 .model-notice { margin: 12px 0 0; display: flex; gap: 8px; align-items: flex-start; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .model-notice svg { flex: none; margin-top: 2px; }
+.plan-card .plan-link.soon { cursor: default; border-style: dashed; color: var(--muted); background: transparent; }

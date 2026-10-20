@@ -23,8 +23,6 @@ const PLANS: PayPalPlanMap = {
   "student:annual": "P-STUDENTANNUAL001",
   "pro:monthly": "P-PROMONTHLY00001",
   "pro:annual": "P-PROANNUAL000001",
-  "institution:monthly": "P-INSTMONTHLY0001",
-  "institution:annual": "P-INSTANNUAL00001",
 };
 
 type Call = { method: string; path: string; headers: Record<string, string>; body: string };

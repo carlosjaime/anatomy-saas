@@ -271,6 +271,7 @@ const esMX = {
     structureBack: "{detail}. Estructura de {organ} ({system}).",
   },
   plans: {
+    comingSoon: "Próximamente",
     kicker: "Planes de Atlas Anatómico",
     title: "Elige cómo quieres aprender",
     intro: "Precios en pesos mexicanos con IVA incluido. Cambia o cancela cuando quieras.",
@@ -510,13 +511,13 @@ const esMX = {
     plansTitle: "Precios claros en pesos mexicanos",
     plansLead: "IVA incluido. Mostramos el precio mensual con facturación anual; también puedes pagar mes a mes.",
     startFree: "Empezar gratis",
-    institutionNote: "¿Universidad u hospital? El plan Institucional cubre hasta 25 licencias desde {price} MXN/mes.",
+    institutionNote: "¿Universidad u hospital? El plan Institucional, con licencias por grupo, está en desarrollo; su precio de referencia es {price} MXN/mes.",
     faqTitle: "Resolvemos tus dudas",
     faq: [
       { q: "¿Necesito instalar algo?", a: "No. Atlas Anatómico funciona en el navegador de tu computadora, tableta o teléfono, con modelos 3D optimizados para cargar rápido." },
       { q: "¿El contenido sustituye al libro de texto?", a: "No. Es un complemento visual e interactivo para tu bibliografía de referencia y tus clases. Está pensado para reforzar la comprensión espacial y repasar." },
       { q: "¿Puedo usarlo sin crear cuenta?", a: "Sí, en modo invitado puedes explorar el visor 3D. Con una cuenta gratuita además guardas tu progreso y accedes a tu panel de estudio." },
-      { q: "¿Hay planes para universidades u hospitales?", a: "Sí. El plan Institucional incluye hasta 25 licencias y acompañamiento para docentes." },
+      { q: "¿Hay planes para universidades u hospitales?", a: "Lo estamos desarrollando: el plan Institucional tendrá gestión de licencias por grupo y acompañamiento para docentes. Aún no se puede contratar en línea." },
     ],
     finalTitle: "Empieza hoy a estudiar anatomía en tres dimensiones",
     finalLead: "Gratis para siempre en el plan básico. Mejora cuando lo necesites.",

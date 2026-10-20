@@ -151,6 +151,8 @@ export function PlansDialog({ open, plan, onClose, viewer }: Props) {
               </ul>
               {isCurrent ? (
                 <span className="current-badge">{p.current}</span>
+              ) : !item.selfServe && !isFree ? (
+                <span className="plan-link soon" data-testid={`plan-soon-${item.id}`}>{p.comingSoon}</span>
               ) : isFree ? (
                 <Link className="plan-link" href={viewer ? "/cuenta" : "/registro?next=/atlas"}>
                   {viewer ? p.manage : p.createFree}

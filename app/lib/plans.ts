@@ -37,6 +37,11 @@ export type Plan = {
   features: readonly Feature[];
   highlight?: boolean;
   seats: number;
+  /**
+   * Contratable en línea. El plan Institucional no lo es hasta que exista la
+   * gestión de licencias por grupo: venderlo hoy otorgaría una sola licencia.
+   */
+  selfServe: boolean;
 };
 
 /** Descuento aplicado al pagar 12 meses por adelantado. */
@@ -49,6 +54,7 @@ export const PLANS: readonly Plan[] = [
     monthlyPrice: 0,
     features: [],
     seats: 1,
+    selfServe: false,
   },
   {
     id: "student",
@@ -56,6 +62,7 @@ export const PLANS: readonly Plan[] = [
     monthlyPrice: 129,
     features: ["allOrgans", "fullEncyclopedia", "allFlashcards"],
     seats: 1,
+    selfServe: true,
   },
   {
     id: "pro",
@@ -64,6 +71,7 @@ export const PLANS: readonly Plan[] = [
     features: ["allOrgans", "fullEncyclopedia", "allFlashcards", "clinicalCorrelation"],
     highlight: true,
     seats: 1,
+    selfServe: true,
   },
   {
     id: "institution",
@@ -71,6 +79,7 @@ export const PLANS: readonly Plan[] = [
     monthlyPrice: 1999,
     features: ["allOrgans", "fullEncyclopedia", "allFlashcards", "clinicalCorrelation"],
     seats: 25,
+    selfServe: false,
   },
 ];
 
@@ -92,6 +101,13 @@ export function parsePlan(value: unknown): PlanId {
 
 export function isPaidPlanId(value: unknown): value is PaidPlanId {
   return isPlanId(value) && value !== "free";
+}
+
+/** Planes de pago que hoy se pueden contratar en línea. */
+export const SELF_SERVE_PLAN_IDS: readonly PaidPlanId[] = PAID_PLAN_IDS.filter((id) => planById[id].selfServe);
+
+export function isSelfServePlanId(value: unknown): value is PaidPlanId {
+  return isPaidPlanId(value) && planById[value].selfServe;
 }
 
 export function isBillingCycle(value: unknown): value is BillingCycle {

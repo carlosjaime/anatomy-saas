@@ -2,14 +2,14 @@
  * Aprovisiona (o verifica) el producto y los planes de PayPal a partir del
  * catálogo de `app/lib/plans.ts`, la única fuente de verdad de los precios.
  *
- *   npm run paypal:setup             # crea producto + 6 planes, imprime PAYPAL_PLAN_IDS
+ *   npm run paypal:setup             # crea producto + planes contratables, imprime PAYPAL_PLAN_IDS
  *   npm run paypal:setup -- --verify # comprueba que PAYPAL_PLAN_IDS coincida con el catálogo
  *
- * Requiere PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET y PAYPAL_ENVIRONMENT
+ * Solo planes contratables en línea (`selfServe`). Requiere PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET y PAYPAL_ENVIRONMENT
  * (sandbox por defecto). Es idempotente: reutiliza las mismas claves
  * `PayPal-Request-Id`, así que repetirlo no duplica planes.
  */
-import { billedAmount, PAID_PLAN_IDS, planById, type BillingCycle, type PaidPlanId } from "../app/lib/plans.ts";
+import { billedAmount, SELF_SERVE_PLAN_IDS, planById, type BillingCycle, type PaidPlanId } from "../app/lib/plans.ts";
 import { PayPalClient, PLAN_KEYS, type PayPalEnvironment, type PlanKey } from "../app/lib/server/billing/paypal.ts";
 import { parsePlanIds } from "../app/lib/server/config.ts";
 import { fromCents } from "../app/lib/server/billing/provider.ts";
@@ -79,7 +79,7 @@ async function main() {
 
   if (process.argv.includes("--verify")) {
     const plans = parsePlanIds(process.env.PAYPAL_PLAN_IDS);
-    if (!plans) throw new Error("PAYPAL_PLAN_IDS falta o no cubre los 6 planes.");
+    if (!plans) throw new Error("PAYPAL_PLAN_IDS falta o no cubre los planes contratables.");
     let failed = false;
     for (const key of PLAN_KEYS) {
       const payload = await client.request<PlanPayload>(`/v1/billing/plans/${plans[key]}`);
@@ -100,7 +100,7 @@ async function main() {
   });
 
   const result: Partial<Record<PlanKey, string>> = {};
-  for (const plan of PAID_PLAN_IDS) {
+  for (const plan of SELF_SERVE_PLAN_IDS) {
     for (const cycle of ["monthly", "annual"] as const) {
       const key: PlanKey = `${plan}:${cycle}`;
       const created = await client.request<PlanPayload>("/v1/billing/plans", {

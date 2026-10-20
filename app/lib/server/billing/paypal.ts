@@ -1,4 +1,4 @@
-import { CURRENCY, PAID_PLAN_IDS, type BillingCycle, type PaidPlanId } from "../../plans";
+import { CURRENCY, SELF_SERVE_PLAN_IDS, type BillingCycle, type PaidPlanId } from "../../plans";
 import {
   BillingProviderError,
   toCents,
@@ -34,7 +34,8 @@ export const PAYPAL_API_BASE: Record<PayPalEnvironment, string> = {
 export type PlanKey = `${PaidPlanId}:${BillingCycle}`;
 export type PayPalPlanMap = Partial<Record<PlanKey, string>>;
 
-export const PLAN_KEYS: readonly PlanKey[] = PAID_PLAN_IDS.flatMap((plan) => [`${plan}:monthly`, `${plan}:annual`] as PlanKey[]);
+/** Solo planes contratables en línea (ver `Plan.selfServe`). */
+export const PLAN_KEYS: readonly PlanKey[] = SELF_SERVE_PLAN_IDS.flatMap((plan) => [`${plan}:monthly`, `${plan}:annual`] as PlanKey[]);
 
 export type PayPalCredentials = {
   clientId: string;

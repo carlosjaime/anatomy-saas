@@ -263,6 +263,7 @@ const enUS: Messages = {
     structureBack: "{detail}. A structure of the {organ} ({system}).",
   },
   plans: {
+    comingSoon: "Coming soon",
     kicker: "Atlas Anatómico plans",
     title: "Choose how you want to learn",
     intro: "Prices in Mexican pesos, VAT included. Change or cancel anytime.",
@@ -502,13 +503,13 @@ const enUS: Messages = {
     plansTitle: "Clear pricing in Mexican pesos",
     plansLead: "VAT included. We show the monthly price with yearly billing; you can also pay month to month.",
     startFree: "Start for free",
-    institutionNote: "University or hospital? The Institutional plan covers up to 25 seats from {price} MXN/mo.",
+    institutionNote: "University or hospital? The Institutional plan, with group seats, is in development; its reference price is {price} MXN/mo.",
     faqTitle: "Your questions, answered",
     faq: [
       { q: "Do I need to install anything?", a: "No. Atlas Anatómico runs in the browser on your computer, tablet or phone, with 3D models optimized to load fast." },
       { q: "Does it replace the textbook?", a: "No. It's a visual, interactive complement to your reference books and classes, designed to strengthen spatial understanding and review." },
       { q: "Can I use it without an account?", a: "Yes. In guest mode you can explore the 3D viewer. A free account also saves your progress and unlocks your study dashboard." },
-      { q: "Are there plans for universities or hospitals?", a: "Yes. The Institutional plan includes up to 25 seats and support for educators." },
+      { q: "Are there plans for universities or hospitals?", a: "We're building it: the Institutional plan will include group seat management and support for educators. It can't be purchased online yet." },
     ],
     finalTitle: "Start studying anatomy in three dimensions today",
     finalLead: "Free forever on the basic plan. Upgrade when you need to.",
