@@ -25,7 +25,7 @@ La parte fija ($4.64 con IVA) castiga los tickets chicos: en anual la comisión 
 | Base de datos (Turso) | Plan de pago de entrada ≈ USD 29 (el gratuito alcanza al inicio) | 0 – 540 |
 | Correo transaccional (Resend) | Gratis hasta 3,000/mes; USD 20 después | 0 – 370 |
 | Dominio | ≈ $400/año | 35 |
-| Licencias de modelos | Z-Anatomy/BodyParts3D: $0 (CC). Tripo de pago si se conservan/regeneran los modelos actuales: verificar plan | 0 – 400 |
+| Licencias de modelos | Z-Anatomy/BodyParts3D: $0 (CC). Tripo: derechos ya confirmados; solo hay costo si se generan modelos nuevos con un plan de pago | 0 – 400 |
 | **Infraestructura** | | **≈ 400 – 1,700** |
 | Mantenimiento de software | 0.25 de un desarrollador | 12,000 |
 | Revisión de contenido médico | Anatomista/médico por horas | 5,000 |

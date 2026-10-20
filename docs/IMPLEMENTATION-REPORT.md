@@ -7,7 +7,7 @@ Rama: `claude/medical-platform-redesign-emq79n`. Fecha: 2026-10-20.
 | Área | Hallazgo | Severidad | Costo de atención |
 |---|---|---|---|
 | Stack | Next.js 16 (App Router, RSC), React 19, TypeScript estricto, Three.js 0.185 + GSAP, Drizzle (libSQL/Turso y Cloudflare D1), Tailwind 4 + CSS con tokens, vinext para Workers, Playwright. Base sana: lint, tipos y 47 pruebas en verde. | — | — |
-| Modelos 3D | Los 9 GLB son **mallas generadas por IA (Tripo)**, de una pieza, sin segmentación; licencia no documentada; 300–390 k triángulos y texturas 2048² cada uno. | Crítica (licencia), Alta (precisión) | Alto |
+| Modelos 3D | Los 9 GLB son **mallas generadas por IA (Tripo)**, de una pieza, sin segmentación; licencia comercial de Tripo confirmada por el propietario (2026-10-20); 300–390 k triángulos y texturas 2048² cada uno. | Alta (precisión); licencia resuelta | Alto |
 | Pagos | Mercado Pago funcional con buena separación (`BillingProvider`). Se pedía PayPal. | — | Medio |
 | Producto | El plan Institucional se vendía con "25 licencias" sin gestión de grupos: la compra daba una sola licencia. | **Alta** (promesa no implementada) | Bajo (bloquear) / Alto (construir) |
 | UI | Impeccable: 105 hallazgos en 5 páginas (contraste insuficiente, texto de 8–10 px, degradados cian, brillos en bucle, rebotes, etiquetas sobre títulos). Sin tema oscuro. Glifos Unicode como iconos. | Media | Medio |
@@ -71,7 +71,7 @@ Observación: con 3 workers y render WebGL por software, algunas pruebas del vis
 | Pendiente | Motivo |
 |---|---|
 | Probar PayPal Sandbox de punta a punta y luego Live | Red bloqueada en este entorno; requiere credenciales del propietario |
-| Confirmar licencia comercial de los modelos Tripo e ilustraciones | Depende de la cuenta que los generó |
+| Confirmar la licencia de las ilustraciones (`public/anatomy`) | Sin registro de procedencia; la de Tripo ya está confirmada |
 | Catálogo segmentado (Z-Anatomy): esqueleto, músculos, nervios, vasos, sistemas completos; ocultar/aislar/opacidad por estructura; modo de identificación | Fase aparte decidida por el propietario; requiere pipeline de Blender y revisión anatómica |
 | Plan Institucional (organizaciones, licencias, panel docente, CFDI) | No existía; se bloqueó la venta en lugar de simularlo |
 | Colecciones, presentaciones, marcadores | No implementado en esta iteración |
@@ -80,7 +80,7 @@ Observación: con 3 workers y render WebGL por software, algunas pruebas del vis
 
 ## 8. Antes del lanzamiento
 
-1. Confirmar (o sustituir) la licencia de los modelos y de las ilustraciones.
+1. Confirmar (o sustituir) la licencia de las ilustraciones y guardar fuera del repositorio la evidencia de la licencia de Tripo.
 2. PayPal Sandbox: `paypal:setup`, `--verify`, webhook registrado y la lista de escenarios de `PAYPAL-INTEGRATION.md`; después, lo mismo en Live.
 3. Variables de producción: `DATABASE_URL`, `APP_URL`, `PAYPAL_*`, `RESEND_API_KEY`, `EMAIL_FROM`.
 4. Revisión legal: términos, aviso de privacidad, aviso educativo (no sustituye consejo médico), facturación CFDI.

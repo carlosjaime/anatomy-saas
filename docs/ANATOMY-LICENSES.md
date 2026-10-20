@@ -6,18 +6,20 @@
 
 | Recurso | Ruta | Origen | Licencia | Estado |
 |---|---|---|---|---|
-| 9 especímenes GLB | `public/models/*.glb` | Generados con **Tripo** (metadatos `tripo_node_*`, `tripo_material_*`), optimizados con glTF-Transform 4.4.2 | **Desconocida** | ⚠️ **Bloqueante para lanzamiento** |
-| 9 especímenes LOD1 | `public/models/lod1/*.glb` | Derivados de los anteriores con `scripts/build-model-lods.mjs` | Hereda la de los originales | ⚠️ Igual que arriba |
+| 9 especímenes GLB | `public/models/*.glb` | Generados con **Tripo** (metadatos `tripo_node_*`, `tripo_material_*`), optimizados con glTF-Transform 4.4.2 | Derechos comerciales de Tripo (plan de pago), **confirmados por el propietario** el 2026-10-20 | ✅ Confirmada |
+| 9 especímenes LOD1 | `public/models/lod1/*.glb` | Derivados de los anteriores con `scripts/build-model-lods.mjs` | Hereda la de los originales | ✅ Confirmada |
 | Ilustraciones por órgano | `public/anatomy/<órgano>/*.webp` | Sin registro de procedencia en el repositorio | **Desconocida** | ⚠️ Verificar |
 | Decodificadores Draco/Basis | `public/draco`, `public/basis` | Google Draco / Binomial Basis Universal | Apache 2.0 | ✅ |
 
-### Tripo: por qué es bloqueante
+### Tripo
 
-Las fuentes públicas se contradicen sobre los modelos del plan gratuito: artículos del blog de Tripo los describen como CC BY 4.0 (uso comercial con atribución), mientras que su página de ayuda "How to Use Tripo Models Commercially" indica que, según los Términos (sección 5.2.1), Tripo conserva los derechos de las salidas de usuarios gratuitos y **no** concede uso comercial. Los planes de pago sí conceden derechos comerciales.
+**Estado: confirmada por el propietario (2026-10-20).** El propietario confirmó que los modelos se generaron con derechos de uso comercial de Tripo.
 
-**Acción requerida:** confirmar con la cuenta que generó los modelos que se crearon con un **plan de pago** vigente en ese momento y conservar la evidencia (factura, fecha, términos). Si no se puede demostrar, retirar los modelos o regenerarlos/sustituirlos antes de cobrar.
+Contexto: las fuentes públicas se contradicen sobre el plan gratuito. El blog de Tripo habla de CC BY 4.0, mientras que su página de ayuda "How to Use Tripo Models Commercially" (Términos, sección 5.2.1) indica que el plan gratuito no concede uso comercial; los planes de pago sí lo conceden.
 
-Aun con derechos comerciales, son modelos ilustrativos generados por IA: la app lo declara en el visor y no los presenta como anatomía validada.
+Mantener fuera del repositorio la evidencia (cuenta, plan vigente al generar cada modelo, factura y versión de los Términos), por si se audita.
+
+La licencia resuelve el riesgo legal, no el de precisión: siguen siendo modelos ilustrativos generados por IA. La app lo declara en el visor y no los presenta como anatomía validada.
 
 ## Fuentes evaluadas para ampliar el catálogo
 
@@ -41,4 +43,5 @@ Aun con derechos comerciales, son modelos ilustrativos generados por IA: la app 
 
 | Fecha | Recurso | Cambio |
 |---|---|---|
+| 2026-10-20 | `public/models/*.glb` | El propietario confirma derechos comerciales de Tripo. |
 | 2026-10-20 | `public/models/lod1/*` | Generados desde los GLB originales: weld, simplify 25 % (error 0.0005), texturas a 1024², meshopt. Deriva de caja envolvente ≤ 0.07 %. |

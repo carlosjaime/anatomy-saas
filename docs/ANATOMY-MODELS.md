@@ -23,7 +23,7 @@ VRAM estimada por espécimen (corazón): ~67 MB de texturas en LOD0 → ~17 MB e
 
 | Aspecto | Hallazgo | Severidad |
 |---|---|---|
-| Procedencia | Los nueve GLB tienen nodos y materiales `tripo_*`: son **mallas generadas por IA con Tripo**. No hay registro en el repositorio del plan de Tripo usado ni de la licencia de salida (ver `ANATOMY-LICENSES.md`). | **Crítica** (legal) |
+| Procedencia | Los nueve GLB tienen nodos y materiales `tripo_*`: son **mallas generadas por IA con Tripo**. El propietario confirmó los derechos comerciales el 2026-10-20 (ver `ANATOMY-LICENSES.md`). | Resuelta |
 | Precisión anatómica | Generadas a partir de una imagen/texto, no de datos anatómicos (TC/RM o atlas segmentado). La forma general es verosímil, pero **no hay garantía de exactitud** de cámaras, válvulas, ramas vasculares, lóbulos ni proporciones. | **Alta** |
 | Segmentación | Una sola malla y un solo material por espécimen. No se pueden ocultar, aislar, resaltar ni consultar estructuras individuales; "Aislar" y "Corte" actúan sobre el órgano completo. | **Alta** (limita el explorador) |
 | Etiquetado | Los puntos señalados (`hotspots` en `app/lib/anatomy-data.ts`) son coordenadas colocadas a mano en el espacio normalizado; no están ligados a geometría anatómica. | Media |
@@ -59,4 +59,4 @@ Pendiente: medir FPS y memoria GPU en dispositivos reales (iPhone de gama media,
 3. **Pipeline:** Blender (headless) → exportar por sistema y por estructura a glTF con nombres TA → glTF-Transform (dedup, weld, simplify por LOD, meshopt/Draco, KTX2) → manifiesto JSON (id TA, nombre es/en/latín, sistema, archivo, licencia).
 4. **Explorador:** con estructuras separadas se habilitan ocultar/mostrar, aislar, opacidad por capa, búsqueda que encuadra la estructura y cuestionarios de identificación.
 5. **Validación:** revisión por un anatomista de cada estructura antes de publicarla; registro de cambios por modelo en `ANATOMY-LICENSES.md`.
-6. **Sustitución de los modelos Tripo:** cuando exista el equivalente Z-Anatomy de cada órgano, o antes si no se confirma la licencia de Tripo.
+6. **Sustitución de los modelos Tripo:** su licencia está confirmada, así que no es urgente. Se reemplazan cuando exista el equivalente Z-Anatomy segmentado y revisado de cada órgano, por precisión y para habilitar herramientas por estructura.

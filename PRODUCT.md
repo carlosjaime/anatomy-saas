@@ -30,7 +30,7 @@ Atlas en español de México, con nomenclatura clínica, precios en MXN y correl
 
 ## Capabilities and Constraints
 
-- 9 especímenes 3D (corazón, cerebro, pulmones, hígado, riñones, ojo, intestino, páncreas, piel). Son mallas de una sola pieza **generadas por IA (Tripo)**, sin segmentación por estructura: los puntos señalados se colocan a mano y no se pueden ocultar, aislar ni medir estructuras individuales. Ver `docs/ANATOMY-MODELS.md`.
+- 9 especímenes 3D (corazón, cerebro, pulmones, hígado, riñones, ojo, intestino, páncreas, piel). Son mallas de una sola pieza **generadas por IA (Tripo)**, con derechos comerciales confirmados, sin segmentación por estructura: los puntos señalados se colocan a mano y no se pueden ocultar, aislar ni medir estructuras individuales. Ver `docs/ANATOMY-MODELS.md`.
 - Suscripciones recurrentes con **PayPal Subscriptions API** (único procesador). Planes: Gratis, Estudiante, Profesional, Institucional.
 - Contenido educativo: no constituye diagnóstico ni consejo médico individualizado.
 - Abierto: catálogo anatómico con fuentes licenciadas (Z-Anatomy, BodyParts3D), gestión institucional de grupos, precios definitivos.
