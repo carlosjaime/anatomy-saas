@@ -1851,7 +1851,7 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 
 /* ═══════════════════════ Pie de página ═══════════════════════ */
 
-.devhive-logo { flex: none; border-radius: 22%; box-shadow: 0 6px 16px rgba(10,30,50,.16); object-fit: cover; }
+.devhive-logo { flex: none; border-radius: 22%; box-shadow: 0 6px 16px rgba(10,30,50,.16); object-fit: contain; }
 .footer-copyright { margin: 0; color: var(--muted); font: 500 13px/1.5 var(--font-sans), sans-serif; }
 .footer-copyright strong { color: var(--ink); font-weight: 700; }
 
@@ -1908,7 +1908,7 @@ html.locale-entering .dialog-panel { animation: locale-in .42s var(--ease-out); 
 .about-numbers .stats-strip { margin-top: 0; }
 .about-builder { max-width: 1192px; margin: 88px auto 0; padding: 36px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 36px; align-items: center; border-radius: 28px; color: #e6edf3; background: var(--navy); box-shadow: 0 30px 70px rgba(10,20,35,.28); }
 .about-builder-logo { display: grid; place-items: center; width: 168px; height: 168px; border-radius: 36px; background: rgb(var(--surface-rgb) / .04); border: 1px solid rgba(255,255,255,.08); }
-.about-builder-logo img { width: 128px; height: 128px; border-radius: 28px; animation: hero-float 7s ease-in-out infinite; }
+.about-builder-logo img { width: 128px; height: 128px; object-fit: contain; border-radius: 28px; animation: hero-float 7s ease-in-out infinite; }
 .about-builder .eyebrow { color: var(--teal-bright); }
 .about-builder h2 { margin: 10px 0 10px; color: #fff; font: 600 clamp(26px, 3vw, 36px)/1.15 var(--font-serif), serif; }
 .about-builder p { margin: 0 0 18px; max-width: 640px; color: #b8c7d6; font: 500 15px/1.65 var(--font-sans), sans-serif; }
