@@ -20,7 +20,8 @@
     "db:studio": "drizzle-kit studio",
     "build:animations": "node scripts/build-animations.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:full": "npm run build:next && playwright test"
+    "test:e2e:full": "npm run build:next && playwright test",
+    "design:detect": "impeccable detect app"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",
@@ -47,6 +48,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "impeccable": "^4.7.0",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",
     "tsx": "^4.23.15",
